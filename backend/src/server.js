@@ -26,10 +26,31 @@ app.get("/", function(req, res, next) {
     .catch(next);
 });
 
-app.get("/log", function(req, res, next) {
-  database.raw('select VERSION() version')
+app.get("/schema", function(req, res, next) {
+  database.raw('CREATE DATABASE sbm_electric_measurement')
     .then(([rows, columns]) => rows[0])
-    .then((row) => res.json({ message: `Bhagwan Komalram` }))
+    .then((row) => res.json({ message: row }))
+    .catch(next);
+});
+
+app.get("/database", function(req, res, next) {
+  database.raw('SHOW DATABASES')
+    .then(([rows, columns]) => rows)
+    .then((row) => res.json({ message: row }))
+    .catch(next);
+});
+
+app.get("/tablas", function(req, res, next) {
+  database.raw('SHOW TABLES')
+    .then(([rows, columns]) => rows)
+    .then((row) => res.json({ message: row }))
+    .catch(next);
+});
+
+app.get("/drop", function(req, res, next) {
+  database.raw(`DROP TABLE users`)
+    .then(([rows, columns]) => rows)
+    .then((row) => res.json({ message: row }))
     .catch(next);
 });
 
