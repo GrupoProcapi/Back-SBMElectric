@@ -1,12 +1,6 @@
-## Compose sample application
+## SBM Electic Consume Meter
 
-### Use with Docker Development Environments
-
-You can open this sample in the Dev Environments feature of Docker Desktop version 4.12 or later.
-
-[Open in Docker Dev Environments <img src="../open_in_new.svg" alt="Open in Docker Dev Environments" align="top"/>](https://open.docker.com/dashboard/dev-envs?url=https://github.com/docker/awesome-compose/tree/master/react-express-mysql)
-
-### React application with a NodeJS backend and a MySQL database
+### Application with a NodeJS backend and a MySQL database
 
 Project structure:
 ```
@@ -17,9 +11,6 @@ Project structure:
 ├── db
 │   └── password.txt
 ├── compose.yaml
-├── frontend
-│   ├── ...
-│   └── Dockerfile
 └── README.md
 ```
 
@@ -40,8 +31,6 @@ services:
     #image: mysql:8.0.27
 ```
 The compose file defines an application with three services `backend` and `db`.
-When deploying the application, docker compose maps port 3000 of the frontend service container to port 3000 of the host as specified in the file.
-Make sure port 3000 on the host is not already being in use.
 
 > ℹ️ **_INFO_**  
 > For compatibility purpose between `AMD64` and `ARM64` architecture, we use a MariaDB as database instead of MySQL.  
