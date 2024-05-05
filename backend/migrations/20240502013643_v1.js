@@ -21,6 +21,7 @@ exports.up = function(knex) {
       table.timestamp('last_mesure_date', { precision: 6 });
       table.decimal('current_measure_value').notNullable();
       table.timestamp('current_measure_date', { precision: 6 }).defaultTo(knex.fn.now(6));
+      table.enu('status', ['PENDIENTE', 'PROCESANDO', 'FACTURADO']);
       //table.foreign('user_id').references('users.id').deferrable('deferred');
       //table.foreign('measurer_id').references('measurers.id').deferrable('deferred');
     });

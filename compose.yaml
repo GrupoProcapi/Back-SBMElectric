@@ -20,6 +20,8 @@ services:
       - db-password
     volumes:
       - ./backend/src:/code/src:ro
+      - ./backend/migrations:/code/migrations:ro
+      - ./backend/seeds:/code/seeds:ro
       - ./backend/package.json:/code/package.json
       - ./backend/package-lock.json:/code/package-lock.json
       - back-notused:/opt/app/node_modules
