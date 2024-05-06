@@ -11,12 +11,12 @@ const morgan = require("morgan");
 // morgan provides easy logging for express, and by default it logs to stdout
 // which is a best practice in Docker. Friends don't let friends code their apps to
 // do app logging to files in containers.
-
+const bodyParser = require('body-parser');
 const database = require("./database");
 
-// Appi
+// Api
 const app = express();
-
+app.use(bodyParser.json());
 app.use(morgan("common"));
 
 app.get("/", function(req, res, next) {
@@ -59,6 +59,93 @@ app.get("/healthz", function(req, res) {
   // you should return 200 if healthy, and anything else will fail
   // if you want, you should be able to restrict this to localhost (include ipv4 and ipv6)
   res.send("I am happy and healthy\n");
+});
+
+// User Routes 
+// Create User
+app.post('/api/users', async (req, res, next) => {
+  try {
+    const newUser = req.body;
+    database.raw(`INSERT INTO users (id, username, password, rol) VALUES(NULL,"${newUser.username}", "${btoa(newUser.password)}", "${newUser.role}")`)
+    .then(([rows, columns]) => rows[0])
+    .then((row) => res.status(201).json({message : "User Created"}))
+    .catch(next);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// Get all Users
+app.get('/api/users', async (req, res, next) => {
+  try {
+    database.raw('SELECT * FROM users')
+    .then(([rows, columns]) => rows[0])
+    .then((row) => res.json({ message: row }))
+    .catch(next);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Get single User
+app.get('/api/users/:id', async (req, res, next) => {
+  try {
+    const userId = req.params.id;
+    database.raw(`SELECT * FROM users WHERE id = ${userId}`)
+    .then(([rows, columns]) => rows[0])
+    .then((row) => row ? res.json({ message: row }) : res.status(404).json({ message: 'User not found' }))
+    .catch(next);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Update User
+app.put('/api/users/:id', async (req, res, next) => {
+  try {
+    const userId = req.params.id;
+    const user = req.body;
+    database.raw(`SELECT * FROM users WHERE id = ${userId}`)
+    .then(([rows]) => rows[0])
+    .then((row) => row ? 
+        database.raw(`UPDATE users SET username="${user.username}", password="${btoa(user.password)}", rol="${user.role}" WHERE id = ${userId}`)
+        .then(([rows]) => rows[0])
+        .then((row) => res.json({ message: 'User updated.' }))
+    : res.status(404).json({ message: 'User not found' }))
+    .catch(next);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// Delete User
+app.delete('/api/users/:id', async (req, res, next) => {
+  try {
+    const userId = req.params.id;
+    database.raw(`SELECT * FROM users WHERE id = ${userId}`)
+    .then(([rows]) => rows[0])
+    .then((row) => row ? 
+        database.raw(`DELETE FROM users WHERE id = ${userId}`)
+        .then(([rows]) => rows[0])
+        .then((row) => res.json({ message: 'User deleted.' }))
+    : res.status(404).json({ message: 'User not found' }))
+    .catch(next);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+//Log In
+app.post('/api/log', async (req, res, next) => {
+  try {
+    const newUser = req.body;
+    database.raw(`SELECT username,rol FROM users WHERE username = "${newUser.username}" AND password = "${btoa(newUser.password)}"`)
+    .then(([rows, columns]) => rows[0])
+    .then((row) => row ? res.json({ message: row }) : res.status(404).json({ message: 'Wrong username or password' }))
+    .catch(next);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
 });
 
 // Get all Customers

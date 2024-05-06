@@ -11,6 +11,7 @@ services:
       - DATABASE_USER=root
       - DATABASE_PASSWORD=/run/secrets/db-password
       - DATABASE_HOST=db
+      - DATABASE_PORT=3306
       - NODE_ENV=development
     ports:
       - 80:80
@@ -46,6 +47,8 @@ services:
     environment:
       - MYSQL_DATABASE=example
       - MYSQL_ROOT_PASSWORD_FILE=/run/secrets/db-password
+    ports:
+      - 3306:3306
 networks:
   public:
   private:
