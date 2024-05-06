@@ -86,4 +86,29 @@ app.get('/api/customers/:id', async (req, res, next) => {
   }
 });
 
+// Get all Services
+app.get('/api/services', async (req, res, next) => {
+  try {
+    database.raw('SELECT * FROM sbmqb_services')
+    .then(([rows, columns]) => rows)
+    .then((row) => res.json({ message: row }))
+    .catch(next);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Get single Services
+app.get('/api/services/:id', async (req, res, next) => {
+  try {
+    const serviceId = req.params.id;
+    database.raw(`SELECT * FROM sbmqb_services WHERE sbmqb_id = ${serviceId}`)
+    .then(([rows, columns]) => rows[0])
+    .then((row) => row ? res.json({ message: row }) : res.status(404).json({ message: 'Service not found' }))
+    .catch(next);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 module.exports = app;
