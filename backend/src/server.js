@@ -66,7 +66,7 @@ app.get("/healthz", function(req, res) {
 app.post('/api/users', async (req, res, next) => {
   try {
     const newUser = req.body;
-    database.raw(`INSERT INTO users (id, username, password, rol) VALUES(NULL,"${newUser.username}", "${newUser.password}", "${newUser.role}")`)
+    database.raw(`INSERT INTO users (id, username, password, rol) VALUES(NULL,"${newUser.username}", "${btoa(newUser.password)}", "${newUser.role}")`)
     .then(([rows, columns]) => rows[0])
     .then((row) => res.status(201).json({message : "User Created"}))
     .catch(next);
@@ -108,7 +108,7 @@ app.put('/api/users/:id', async (req, res, next) => {
     database.raw(`SELECT * FROM users WHERE id = ${userId}`)
     .then(([rows]) => rows[0])
     .then((row) => row ? 
-        database.raw(`UPDATE users SET username="${user.username}", password="${user.password}", rol="${user.role}" WHERE id = ${userId}`)
+        database.raw(`UPDATE users SET username="${user.username}", password="${btoa(user.password)}", rol="${user.role}" WHERE id = ${userId}`)
         .then(([rows]) => rows[0])
         .then((row) => res.json({ message: 'User updated.' }))
     : res.status(404).json({ message: 'User not found' }))
@@ -129,6 +129,19 @@ app.delete('/api/users/:id', async (req, res, next) => {
         .then(([rows]) => rows[0])
         .then((row) => res.json({ message: 'User deleted.' }))
     : res.status(404).json({ message: 'User not found' }))
+    .catch(next);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+//Log In
+app.post('/api/log', async (req, res, next) => {
+  try {
+    const newUser = req.body;
+    database.raw(`SELECT username,rol FROM users WHERE username = "${newUser.username}" AND password = "${btoa(newUser.password)}"`)
+    .then(([rows, columns]) => rows[0])
+    .then((row) => row ? res.json({ message: row }) : res.status(404).json({ message: 'Wrong username or password' }))
     .catch(next);
   } catch (err) {
     res.status(400).json({ message: err.message });
