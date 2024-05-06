@@ -54,16 +54,36 @@ app.get("/drop", function(req, res, next) {
     .catch(next);
 });
 
-/**
- * Customer SBM
- */
-
-
 app.get("/healthz", function(req, res) {
   // do app logic here to determine if app is truly healthy
   // you should return 200 if healthy, and anything else will fail
   // if you want, you should be able to restrict this to localhost (include ipv4 and ipv6)
   res.send("I am happy and healthy\n");
+});
+
+// Get all Customers
+app.get('/api/customers', async (req, res, next) => {
+  try {
+    database.raw('SELECT * FROM sbmqb_customers')
+    .then(([rows, columns]) => rows)
+    .then((row) => res.json({ message: row }))
+    .catch(next);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Get single Customer
+app.get('/api/customers/:id', async (req, res, next) => {
+  try {
+    const customerId = req.params.id;
+    database.raw(`SELECT * FROM sbmqb_customers WHERE sbmqb_id = ${customerId}`)
+    .then(([rows, columns]) => rows[0])
+    .then((row) => row ? res.json({ message: row }) : res.status(404).json({ message: 'Customer not found' }))
+    .catch(next);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
 });
 
 module.exports = app;
