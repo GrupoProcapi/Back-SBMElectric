@@ -4,7 +4,7 @@ exports.up = function(knex) {
       table.increments('id');
       table.string('username', 75).notNullable();
       table.string('password', 512).notNullable();
-      table.enu('rol', ['OPERADOR', 'FACTURADOR', 'ADMINISTRADOR']);
+      table.enu('role', ['OPERADOR', 'FACTURADOR', 'ADMINISTRADOR']);
     })
     .createTable('measurers', function (table) {
       table.increments('id');

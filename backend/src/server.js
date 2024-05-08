@@ -66,7 +66,7 @@ app.get("/healthz", function(req, res) {
 app.post('/api/users', async (req, res, next) => {
   try {
     const newUser = req.body;
-    database.raw(`INSERT INTO users (id, username, password, rol) VALUES(NULL,"${newUser.username}", "${btoa(newUser.password)}", "${newUser.rol}") RETURNING id`)
+    database.raw(`INSERT INTO users (id, username, password, role) VALUES(NULL,"${newUser.username}", "${btoa(newUser.password)}", "${newUser.role}") RETURNING id`)
     .then(([rows]) => rows[0])
     .then((row) => res.status(201).json({message : "User Created. UserId:" + row.id}))
     .catch(next);
@@ -78,7 +78,7 @@ app.post('/api/users', async (req, res, next) => {
 // Get all Users
 app.get('/api/users', async (req, res, next) => {
   try {
-    database.raw('SELECT * FROM users')
+    database.raw('SELECT id, username, role FROM users')
     .then(([rows]) => res.json({ message: rows }))
     .catch(next);
   } catch (err) {
@@ -90,7 +90,7 @@ app.get('/api/users', async (req, res, next) => {
 app.get('/api/users/:id', async (req, res, next) => {
   try {
     const userId = req.params.id;
-    database.raw(`SELECT * FROM users WHERE id = ${userId}`)
+    database.raw(`SELECT id, username, role FROM users WHERE id = ${userId}`)
     .then(([rows]) => rows[0])
     .then((row) => row ? res.json({ message: row }) : res.status(404).json({ message: 'User not found' }))
     .catch(next);
@@ -107,7 +107,7 @@ app.put('/api/users/:id', async (req, res, next) => {
     database.raw(`SELECT * FROM users WHERE id = ${userId}`)
     .then(([rows]) => rows[0])
     .then((row) => row ? 
-        database.raw(`UPDATE users SET username="${user.username}", password="${btoa(user.password)}", rol="${user.role}" WHERE id = ${userId}`)
+        database.raw(`UPDATE users SET username="${user.username}", password="${btoa(user.password)}", role="${user.role}" WHERE id = ${userId}`)
         .then(([rows]) => rows[0])
         .then((row) => res.json({ message: 'User updated.' }))
     : res.status(404).json({ message: 'User not found' }))
@@ -138,7 +138,7 @@ app.delete('/api/users/:id', async (req, res, next) => {
 app.post('/api/login', async (req, res, next) => {
   try {
     const newUser = req.body;
-    database.raw(`SELECT username,rol FROM users WHERE username = "${newUser.username}" AND password = "${btoa(newUser.password)}"`)
+    database.raw(`SELECT id, username, role FROM users WHERE username = "${newUser.username}" AND password = "${btoa(newUser.password)}"`)
     .then(([rows]) => rows[0])
     .then((row) => row ? res.json({ message: row }) : res.status(404).json({ message: 'Wrong username or password' }))
     .catch(next);
