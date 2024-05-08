@@ -4,9 +4,10 @@ exports.seed = function(knex) {
       .then(function () {
         // Inserts seed entries
         return knex('users').insert([
-          {username:'diaz', password: btoa('PA123.'), rol: 'FACTURADOR'},
-          {username:'bravo', password: btoa('1.'), rol: 'OPERADOR'},
-          {username:'alpha', password: btoa('sbm'), rol: 'ADMINISTRADOR'},
+          {username:'diaz', password: btoa('testPassword.'), role: 'FACTURADOR'},
+          {username:'bravo', password: btoa('testPassword'), role: 'OPERADOR'},
+          {username:'alpha', password: btoa('testPassword'), role: 'ADMINISTRADOR'},
+          {username:'testUser', password: btoa('testPassword'), role: 'ADMINISTRADOR'},
         ]);
       });
   };
