@@ -14,7 +14,7 @@ services:
       - DATABASE_PORT=3306
       - NODE_ENV=development
     ports:
-      - 80:80
+#     - 8000:80
       - 9229:9229
       - 9230:9230
     secrets:
@@ -47,19 +47,21 @@ services:
     environment:
       - MYSQL_DATABASE=example
       - MYSQL_ROOT_PASSWORD_FILE=/run/secrets/db-password
-    ports:
-      - 3306:3306
+#    ports:
+#      - 3306:3306
   webserver:
     image: nginx:mainline-alpine
     container_name: webserver
     restart: unless-stopped
     ports:
       - "80:80"
+      - "443:443"
     volumes:
       - web-static:/var/www/html
       - ./nginx-conf:/etc/nginx/conf.d
       - certbot-etc:/etc/letsencrypt
       - certbot-var:/var/lib/letsencrypt
+      - dhparam:/etc/ssl/certs
     depends_on:
       - backend
     networks:
@@ -73,7 +75,7 @@ services:
       - web-static:/var/www/html
     depends_on:
       - webserver
-    command: certonly --webroot --webroot-path=/var/www/html --email ingeniustechnologyfactory@gmail.com --agree-tos --no-eff-email --staging -d itf-sbm-measurer.duckdns.org  -d www.itf-sbm-measurer.duckdns.org
+    command: certonly --webroot --webroot-path=/var/www/html --email ingeniustechnologyfactory@gmail.com --agree-tos --no-eff-email --force-renewal -d itf-sbm-measurer.duckdns.org  -d www.itf-sbm-measurer.duckdns.org
 networks:
   public:
   private:
@@ -86,7 +88,13 @@ volumes:
     driver: local
     driver_opts:
       type: none
-      device: ./web-static
+      device: ./web-static/
+      o: bind
+  dhparam:
+    driver: local
+    driver_opts:
+      type: none
+      device: ./dhparam/
       o: bind
 secrets:
   db-password:
