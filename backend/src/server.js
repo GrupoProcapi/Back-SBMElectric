@@ -66,9 +66,9 @@ app.get("/healthz", function(req, res) {
 app.post('/api/users', async (req, res, next) => {
   try {
     const newUser = req.body;
-    database.raw(`INSERT INTO users (id, username, password, rol) VALUES(NULL,"${newUser.username}", "${btoa(newUser.password)}", "${newUser.role}")`)
-    .then(([rows, columns]) => rows[0])
-    .then((row) => res.status(201).json({message : "User Created"}))
+    database.raw(`INSERT INTO users (id, username, password, rol) VALUES(NULL,"${newUser.username}", "${btoa(newUser.password)}", "${newUser.rol}") RETURNING id`)
+    .then(([rows]) => rows[0])
+    .then((row) => res.status(201).json({message : "User Created. UserId:" + row.id}))
     .catch(next);
   } catch (err) {
     res.status(400).json({ message: err.message });
@@ -79,8 +79,7 @@ app.post('/api/users', async (req, res, next) => {
 app.get('/api/users', async (req, res, next) => {
   try {
     database.raw('SELECT * FROM users')
-    .then(([rows, columns]) => rows[0])
-    .then((row) => res.json({ message: row }))
+    .then(([rows]) => res.json({ message: rows }))
     .catch(next);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -92,7 +91,7 @@ app.get('/api/users/:id', async (req, res, next) => {
   try {
     const userId = req.params.id;
     database.raw(`SELECT * FROM users WHERE id = ${userId}`)
-    .then(([rows, columns]) => rows[0])
+    .then(([rows]) => rows[0])
     .then((row) => row ? res.json({ message: row }) : res.status(404).json({ message: 'User not found' }))
     .catch(next);
   } catch (err) {
@@ -136,17 +135,178 @@ app.delete('/api/users/:id', async (req, res, next) => {
 });
 
 //Log In
-app.post('/api/log', async (req, res, next) => {
+app.post('/api/login', async (req, res, next) => {
   try {
     const newUser = req.body;
     database.raw(`SELECT username,rol FROM users WHERE username = "${newUser.username}" AND password = "${btoa(newUser.password)}"`)
-    .then(([rows, columns]) => rows[0])
+    .then(([rows]) => rows[0])
     .then((row) => row ? res.json({ message: row }) : res.status(404).json({ message: 'Wrong username or password' }))
     .catch(next);
   } catch (err) {
     res.status(400).json({ message: err.message });
   }
 });
+
+// Measures  Routes 
+// Create Measurer
+app.post('/api/measurers', async (req, res, next) => {
+  try {
+    const newMeasurer = req.body;
+    database.raw(`INSERT INTO measurers (id, pedestal, pedestal_id, measurer_code) VALUES(NULL,"${newMeasurer.pedestal}", "${newMeasurer.pedestal_id}", "${newMeasurer.measurer_code}") RETURNING id`)
+    .then(([rows]) => rows[0])
+    .then((row) => res.status(201).json({message : "Measurer Created, Id:" + row.id}))
+    .catch(next);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// Get all Measurers
+app.get('/api/measurers', async (req, res, next) => {
+  try {
+    database.raw('SELECT * FROM measurers')
+    .then(([rows]) => res.json({ message: rows }))
+    .catch(next);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Get single Measurer
+app.get('/api/measurers/:id', async (req, res, next) => {
+  try {
+    const measurersId = req.params.id;
+    database.raw(`SELECT * FROM measurers WHERE id = ${measurersId}`)
+    .then(([rows]) => rows[0])
+    .then((row) => row ? res.json({ message: row }) : res.status(404).json({ message: 'Measurer not found' }))
+    .catch(next);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Update Measurer
+app.put('/api/measurers/:id', async (req, res, next) => {
+  try {
+    const measurerId = req.params.id;
+    const measurer = req.body;
+    database.raw(`SELECT * FROM measurers WHERE id = ${measurerId}`)
+    .then(([rows]) => rows[0])
+    .then((row) => row ? 
+        database.raw(`UPDATE measurers SET pedestal="${measurer.pedestal}", pedestal_id="${measurer.pedestal_id}", measurer_code="${measurer.measurer_code}" WHERE id = ${measurerId}`)
+        .then(([rows]) => rows[0])
+        .then((row) => res.json({ message: 'Measurer updated.' }))
+    : res.status(404).json({ message: 'Measurer not found' }))
+    .catch(next);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// Delete Measurer
+app.delete('/api/measurers/:id', async (req, res, next) => {
+  try {
+    const measurerId = req.params.id;
+    database.raw(`SELECT * FROM measurers WHERE id = ${measurerId}`)
+    .then(([rows]) => rows[0])
+    .then((row) => row ? 
+        database.raw(`DELETE FROM measurers WHERE id = ${measurerId}`)
+        .then(([rows]) => rows[0])
+        .then((row) => res.json({ message: 'Measurer deleted.' }))
+    : res.status(404).json({ message: 'Measurer not found' }))
+    .catch(next);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// Measurements  Routes 
+// Create Measurement
+app.post('/api/measurements', async (req, res, next) => {
+  try {
+    const newMeasurer = req.body;
+    database.raw(`INSERT INTO measurements (id, user_id, measurer_id, customer_sbm, last_measure_value, last_measure_date, current_measure_value, current_measure_date) VALUES(NULL, ${newMeasurer.user_id}, ${newMeasurer.measurer_id}, "${newMeasurer.customer_sbm}", ${newMeasurer.last_measure_value}, "${newMeasurer.last_measure_date}", ${newMeasurer.current_measure_value}, "${newMeasurer.current_measure_date}")`)
+    .then(([rows]) => rows[0])
+    .then((row) => res.status(201).json({message : "Measurement Created"}))
+    .catch(next);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// Get all Measurements
+app.get('/api/measurements', async (req, res, next) => {
+  try {
+    database.raw('SELECT * FROM measurements')
+    .then(([rows]) => res.json({ message: rows }))
+    .catch(next);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Get all Measurements for a specific Measurer
+app.get('/api/measurers/:id/measurements', async (req, res, next) => {
+  try {
+    const measurerId = req.params.id;
+    database.raw(`SELECT * FROM measurements WHERE measurer_id=${measurerId} ORDER BY id desc`)
+    .then(([rows]) => res.json({ message: rows }))
+    .catch(next);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Get single Measurements
+app.get('/api/measurements/:id', async (req, res, next) => {
+  try {
+    const measurementId = req.params.id;
+    database.raw(`SELECT * FROM measurements WHERE id = ${measurementId}`)
+    .then(([rows]) => rows[0])
+    .then((row) => row ? res.json({ message: row }) : res.status(404).json({ message: 'Measurement not found' }))
+    .catch(next);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Update Measurement
+app.put('/api/measurements/:id', async (req, res, next) => {
+  try {
+    const measurementId = req.params.id;
+    const measurement = req.body;
+    database.raw(`SELECT * FROM measurements WHERE id = ${measurementId}`)
+    .then(([rows]) => rows[0])
+    .then((row) => row ? 
+        database.raw(`UPDATE measurements SET user_id=${measurement.user_id}, measurer_id=${measurement.measurer_id}, customer_sbm="${measurement.customer_sbm}", last_measure_value=${measurement.last_measure_value}, last_measure_date="${measurement.last_measure_date}", current_measure_value=${measurement.current_measure_value}, current_measure_date="${measurement.current_measure_date}" WHERE id = ${measurementId}`)
+        .then(([rows]) => rows[0])
+        .then((row) => res.json({ message: 'Measurement updated.' }))
+    : res.status(404).json({ message: 'Measurement not found' }))
+    .catch(next);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// Delete Measurement
+app.delete('/api/measurements/:id', async (req, res, next) => {
+  try {
+    const measurementId = req.params.id;
+    database.raw(`SELECT * FROM measurements WHERE id = ${measurementId}`)
+    .then(([rows]) => rows[0])
+    .then((row) => row ? 
+        database.raw(`DELETE FROM measurements WHERE id = ${measurementId}`)
+        .then(([rows]) => rows[0])
+        .then((row) => res.json({ message: 'Measurement deleted.' }))
+    : res.status(404).json({ message: 'Measurements not found' }))
+    .catch(next);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+
+
 
 // Get all Customers
 app.get('/api/customers', async (req, res, next) => {
