@@ -26,5 +26,8 @@ exports.up = function(knex) {
 };
 
 exports.down = function(knex) {
-    return null; //knex.schema.dropTable('products').dropTable('users');
+    return knex.schema
+    .dropTable('sbmqb_customers')
+    .dropTable('sbmqb_services')
+    .dropTable('sbmqb_customer_services');
 };

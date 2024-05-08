@@ -28,5 +28,8 @@ exports.up = function(knex) {
 };
 
 exports.down = function(knex) {
-    return null; //knex.schema.dropTable('products').dropTable('users');
+    return knex.schema
+    .dropTable('users')
+    .dropTable('measurements')
+    .dropTable('measurers');
 };
