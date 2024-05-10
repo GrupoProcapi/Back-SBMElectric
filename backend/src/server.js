@@ -19,6 +19,19 @@ const app = express();
 app.use(bodyParser.json());
 app.use(morgan("common"));
 
+// Middleware para permitir CORS desde múltiples dominios
+app.use((req, res, next) => {
+  const allowedOrigins = ['http://localhost:5173', 'https://itf-sbm-measurer.duckdns.org'];
+  const origin = req.headers.origin;
+
+  if (allowedOrigins.includes(origin)) {
+      res.header('Access-Control-Allow-Origin', origin);
+  }
+
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  next();
+});
+
 app.get("/", function(req, res, next) {
   database.raw('select VERSION() version')
     .then(([rows, columns]) => rows[0])
