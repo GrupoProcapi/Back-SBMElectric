@@ -13,7 +13,9 @@ const morgan = require("morgan");
 // do app logging to files in containers.
 const bodyParser = require('body-parser');
 const database = require("./database");
-
+const apiKeyValidator = require("./apiKeyValidator");
+const { validationResult } = require('express-validator');
+const { validateCreateUser, validateUpdateUser, validateId, validateLogin, validateCreateMeasurer, validateUpdateMeasurer, validateCreateMeasurements, validateUpdateMeasurements } = require('./validationRules');
 // Api
 const app = express();
 app.use(bodyParser.json());
@@ -31,6 +33,7 @@ app.use((req, res, next) => {
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
   next();
 });
+app.use(apiKeyValidator);
 
 app.get("/", function(req, res, next) {
   database.raw('select VERSION() version')
@@ -76,7 +79,12 @@ app.get("/healthz", function(req, res) {
 
 // User Routes 
 // Create User
-app.post('/api/users', async (req, res, next) => {
+app.post('/api/users', validateCreateUser, async (req, res, next) => {
+  const errors = validationResult(req);
+  if(!errors.isEmpty())
+    {
+      return res.status(400).json({ errors: errors.array() });
+    }
   try {
     const newUser = req.body;
     database.raw(`INSERT INTO users (id, username, password, role) VALUES(NULL,"${newUser.username}", "${btoa(newUser.password)}", "${newUser.role}") RETURNING id`)
@@ -100,7 +108,12 @@ app.get('/api/users', async (req, res, next) => {
 });
 
 // Get single User
-app.get('/api/users/:id', async (req, res, next) => {
+app.get('/api/users/:id', validateId, async (req, res, next) => {
+  const errors = validationResult(req);
+  if(!errors.isEmpty())
+    {
+      return res.status(400).json({ errors: errors.array() });
+    }
   try {
     const userId = req.params.id;
     database.raw(`SELECT id, username, role FROM users WHERE id = ${userId}`)
@@ -113,7 +126,12 @@ app.get('/api/users/:id', async (req, res, next) => {
 });
 
 // Update User
-app.put('/api/users/:id', async (req, res, next) => {
+app.put('/api/users/:id', validateUpdateUser, async (req, res, next) => {
+  const errors = validationResult(req);
+  if(!errors.isEmpty())
+    {
+      return res.status(400).json({ errors: errors.array() });
+    }
   try {
     const userId = req.params.id;
     const user = req.body;
@@ -131,7 +149,12 @@ app.put('/api/users/:id', async (req, res, next) => {
 });
 
 // Delete User
-app.delete('/api/users/:id', async (req, res, next) => {
+app.delete('/api/users/:id', validateId, async (req, res, next) => {
+  const errors = validationResult(req);
+  if(!errors.isEmpty())
+    {
+      return res.status(400).json({ errors: errors.array() });
+    }
   try {
     const userId = req.params.id;
     database.raw(`SELECT * FROM users WHERE id = ${userId}`)
@@ -148,7 +171,12 @@ app.delete('/api/users/:id', async (req, res, next) => {
 });
 
 //Log In
-app.post('/api/login', async (req, res, next) => {
+app.post('/api/login', validateLogin, async (req, res, next) => {
+  const errors = validationResult(req);
+  if(!errors.isEmpty())
+    {
+      return res.status(400).json({ errors: errors.array() });
+    }
   try {
     const newUser = req.body;
     database.raw(`SELECT id, username, role FROM users WHERE username = "${newUser.username}" AND password = "${btoa(newUser.password)}"`)
@@ -162,7 +190,12 @@ app.post('/api/login', async (req, res, next) => {
 
 // Measures  Routes 
 // Create Measurer
-app.post('/api/measurers', async (req, res, next) => {
+app.post('/api/measurers', validateCreateMeasurer, async (req, res, next) => {
+  const errors = validationResult(req);
+  if(!errors.isEmpty())
+    {
+      return res.status(400).json({ errors: errors.array() });
+    }
   try {
     const newMeasurer = req.body;
     database.raw(`INSERT INTO measurers (id, pedestal, pedestal_id, measurer_code) VALUES(NULL,"${newMeasurer.pedestal}", "${newMeasurer.pedestal_id}", "${newMeasurer.measurer_code}") RETURNING id`)
@@ -186,7 +219,12 @@ app.get('/api/measurers', async (req, res, next) => {
 });
 
 // Get single Measurer
-app.get('/api/measurers/:id', async (req, res, next) => {
+app.get('/api/measurers/:id', validateId, async (req, res, next) => {
+  const errors = validationResult(req);
+  if(!errors.isEmpty())
+    {
+      return res.status(400).json({ errors: errors.array() });
+    }
   try {
     const measurersId = req.params.id;
     database.raw(`SELECT * FROM measurers WHERE id = ${measurersId}`)
@@ -199,7 +237,12 @@ app.get('/api/measurers/:id', async (req, res, next) => {
 });
 
 // Update Measurer
-app.put('/api/measurers/:id', async (req, res, next) => {
+app.put('/api/measurers/:id', validateUpdateMeasurer, async (req, res, next) => {
+  const errors = validationResult(req);
+  if(!errors.isEmpty())
+    {
+      return res.status(400).json({ errors: errors.array() });
+    }
   try {
     const measurerId = req.params.id;
     const measurer = req.body;
@@ -217,7 +260,12 @@ app.put('/api/measurers/:id', async (req, res, next) => {
 });
 
 // Delete Measurer
-app.delete('/api/measurers/:id', async (req, res, next) => {
+app.delete('/api/measurers/:id', validateId, async (req, res, next) => {
+  const errors = validationResult(req);
+  if(!errors.isEmpty())
+    {
+      return res.status(400).json({ errors: errors.array() });
+    }
   try {
     const measurerId = req.params.id;
     database.raw(`SELECT * FROM measurers WHERE id = ${measurerId}`)
@@ -235,7 +283,12 @@ app.delete('/api/measurers/:id', async (req, res, next) => {
 
 // Measurements  Routes 
 // Create Measurement
-app.post('/api/measurements', async (req, res, next) => {
+app.post('/api/measurements', validateCreateMeasurements, async (req, res, next) => {
+  const errors = validationResult(req);
+  if(!errors.isEmpty())
+    {
+      return res.status(400).json({ errors: errors.array() });
+    }
   try {
     const newMeasurer = req.body;
     database.raw(`INSERT INTO measurements (id, user_id, measurer_id, customer_sbm, last_measure_value, last_measure_date, current_measure_value, current_measure_date) VALUES(NULL, ${newMeasurer.user_id}, ${newMeasurer.measurer_id}, "${newMeasurer.customer_sbm}", ${newMeasurer.last_measure_value}, "${newMeasurer.last_measure_date}", ${newMeasurer.current_measure_value}, "${newMeasurer.current_measure_date}")`)
@@ -259,7 +312,12 @@ app.get('/api/measurements', async (req, res, next) => {
 });
 
 // Get all Measurements for a specific Measurer
-app.get('/api/measurers/:id/measurements', async (req, res, next) => {
+app.get('/api/measurers/:id/measurements', validateId, async (req, res, next) => {
+  const errors = validationResult(req);
+  if(!errors.isEmpty())
+    {
+      return res.status(400).json({ errors: errors.array() });
+    }
   try {
     const measurerId = req.params.id;
     database.raw(`SELECT * FROM measurements WHERE measurer_id=${measurerId} ORDER BY id desc`)
@@ -271,7 +329,12 @@ app.get('/api/measurers/:id/measurements', async (req, res, next) => {
 });
 
 // Get single Measurements
-app.get('/api/measurements/:id', async (req, res, next) => {
+app.get('/api/measurements/:id', validateId, async (req, res, next) => {
+  const errors = validationResult(req);
+  if(!errors.isEmpty())
+    {
+      return res.status(400).json({ errors: errors.array() });
+    }
   try {
     const measurementId = req.params.id;
     database.raw(`SELECT * FROM measurements WHERE id = ${measurementId}`)
@@ -284,7 +347,12 @@ app.get('/api/measurements/:id', async (req, res, next) => {
 });
 
 // Update Measurement
-app.put('/api/measurements/:id', async (req, res, next) => {
+app.put('/api/measurements/:id', validateUpdateMeasurements, async (req, res, next) => {
+  const errors = validationResult(req);
+  if(!errors.isEmpty())
+    {
+      return res.status(400).json({ errors: errors.array() });
+    }
   try {
     const measurementId = req.params.id;
     const measurement = req.body;
@@ -302,7 +370,12 @@ app.put('/api/measurements/:id', async (req, res, next) => {
 });
 
 // Delete Measurement
-app.delete('/api/measurements/:id', async (req, res, next) => {
+app.delete('/api/measurements/:id', validateId, async (req, res, next) => {
+  const errors = validationResult(req);
+  if(!errors.isEmpty())
+    {
+      return res.status(400).json({ errors: errors.array() });
+    }
   try {
     const measurementId = req.params.id;
     database.raw(`SELECT * FROM measurements WHERE id = ${measurementId}`)
