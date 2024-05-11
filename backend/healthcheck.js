@@ -5,6 +5,9 @@ const options = {
   host: "localhost",
   port: process.env.PORT || 8080,
   path: "/healthz" // must be the same as HEALTHCHECK in Dockerfile
+  headers: {
+    'api-key': 'a2a47f86-c361-4fed-98ec-6b36eeef0266'
+  }
 };
 
 const request = http.request(options, res => {
