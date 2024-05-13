@@ -292,7 +292,7 @@ app.post('/api/measurements', validateCreateMeasurements, async (req, res, next)
     }
   try {
     const newMeasurer = req.body;
-    database.raw(`INSERT INTO measurements (id, user_id, measurer_id, sbmqb_customer_id, sbmqb_customer_name, last_measure_value, last_measure_date, current_measure_value, current_measure_date,status) VALUES(NULL, ${newMeasurer.user_id}, ${newMeasurer.measurer_id}, "${newMeasurer.sbmqb_customer_id}", "${newMeasurer.sbmqb_customer_name}", ${newMeasurer.last_measure_value}, "${newMeasurer.last_measure_date}", ${newMeasurer.current_measure_value}, "${newMeasurer.status}")`)
+    database.raw(`INSERT INTO measurements (id, user_id, measurer_id, sbmqb_customer_id, sbmqb_customer_name, last_measure_value, last_measure_date, current_measure_value, current_measure_date,status) VALUES(NULL, ${newMeasurer.user_id}, ${newMeasurer.measurer_id}, ${newMeasurer.sbmqb_customer_id}, "${newMeasurer.sbmqb_customer_name}", ${newMeasurer.last_measure_value}, "${newMeasurer.last_measure_date}", ${newMeasurer.current_measure_value}, "${newMeasurer.current_measure_date}", "${newMeasurer.status}")`)
     .then(([rows]) => rows[0])
     .then((row) => res.status(201).json({message : "Measurement Created"}))
     .catch(next);
