@@ -292,7 +292,7 @@ app.post('/api/measurements', validateCreateMeasurements, async (req, res, next)
     }
   try {
     const newMeasurer = req.body;
-    database.raw(`INSERT INTO measurements (id, user_id, measurer_id, customer_sbm, last_measure_value, last_measure_date, current_measure_value, current_measure_date) VALUES(NULL, ${newMeasurer.user_id}, ${newMeasurer.measurer_id}, "${newMeasurer.customer_sbm}", ${newMeasurer.last_measure_value}, "${newMeasurer.last_measure_date}", ${newMeasurer.current_measure_value}, "${newMeasurer.current_measure_date}")`)
+    database.raw(`INSERT INTO measurements (id, user_id, measurer_id, sbmqb_customer_id, sbmqb_customer_name, last_measure_value, last_measure_date, current_measure_value, current_measure_date,status) VALUES(NULL, ${newMeasurer.user_id}, ${newMeasurer.measurer_id}, "${newMeasurer.sbmqb_customer_id}", "${newMeasurer.sbmqb_customer_name}", ${newMeasurer.last_measure_value}, "${newMeasurer.last_measure_date}", ${newMeasurer.current_measure_value}, "${newMeasurer.status}")`)
     .then(([rows]) => rows[0])
     .then((row) => res.status(201).json({message : "Measurement Created"}))
     .catch(next);
@@ -360,7 +360,7 @@ app.put('/api/measurements/:id', validateUpdateMeasurements, async (req, res, ne
     database.raw(`SELECT * FROM measurements WHERE id = ${measurementId}`)
     .then(([rows]) => rows[0])
     .then((row) => row ? 
-        database.raw(`UPDATE measurements SET user_id=${measurement.user_id}, measurer_id=${measurement.measurer_id}, customer_sbm="${measurement.customer_sbm}", last_measure_value=${measurement.last_measure_value}, last_measure_date="${measurement.last_measure_date}", current_measure_value=${measurement.current_measure_value}, current_measure_date="${measurement.current_measure_date}" WHERE id = ${measurementId}`)
+        database.raw(`UPDATE measurements SET user_id=${measurement.user_id}, measurer_id=${measurement.measurer_id}, sbmqb_customer_name="${measurement.sbmqb_customer_name}", sbmqb_customer_id="${measurement.sbmqb_customer_id}", last_measure_value=${measurement.last_measure_value}, last_measure_date="${measurement.last_measure_date}", current_measure_value=${measurement.current_measure_value}, current_measure_date="${measurement.current_measure_date}", status="${measurement.status}" WHERE id = ${measurementId}`)
         .then(([rows]) => rows[0])
         .then((row) => res.json({ message: 'Measurement updated.' }))
     : res.status(404).json({ message: 'Measurement not found' }))

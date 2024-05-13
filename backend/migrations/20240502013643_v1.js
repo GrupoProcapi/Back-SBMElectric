@@ -16,7 +16,8 @@ exports.up = function(knex) {
       table.increments('id');
       table.integer('user_id', 100).notNullable();
       table.integer('measurer_id', 100).notNullable();
-      table.string('customer_sbm', 500).notNullable();
+      table.integer('sbmqb_customer_id').notNullable();
+      table.string('sbmqb_customer_name', 500).notNullable();
       table.decimal('last_measure_value').notNullable();
       table.timestamp('last_measure_date', { precision: 6 });
       table.decimal('current_measure_value').notNullable();
