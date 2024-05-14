@@ -11,6 +11,8 @@ const morgan = require("morgan");
 // morgan provides easy logging for express, and by default it logs to stdout
 // which is a best practice in Docker. Friends don't let friends code their apps to
 // do app logging to files in containers.
+const fs = require('fs');
+const path = require('path');
 const bodyParser = require('body-parser');
 const database = require("./database");
 const apiKeyValidator = require("./apiKeyValidator");
@@ -34,14 +36,11 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(apiKeyValidator);
-
 app.get("/", function(req, res, next) {
-  database.raw('select VERSION() version')
-    .then(([rows, columns]) => rows[0])
-    .then((row) => res.json({ message: `Hello from MySQL ${row.version}` }))
-    .catch(next);
+  res.json({ application: "SBM Measurer API", version: 1 })
 });
+
+app.use(apiKeyValidator);
 
 app.get("/schema", function(req, res, next) {
   database.raw('CREATE DATABASE sbm_electric_measurement')
@@ -428,7 +427,7 @@ app.post('/api/customers', async (req, res, next) => {
     .then(([rows, columns]) => rows)
     .then((row) => res.json({ message: row }))
     .catch(next);*/
-    console.log(req)
+    console.log(req.body)
     res.json({ message: "Llego satisfactoriamente." })
   } catch (err) {
     res.status(500).json({ message: err.message });
