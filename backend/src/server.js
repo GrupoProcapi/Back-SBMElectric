@@ -23,7 +23,7 @@ app.use(morgan("common"));
 
 // Middleware para permitir CORS desde múltiples dominios
 app.use((req, res, next) => {
-  const allowedOrigins = ['http://localhost:5173', 'https://itf-sbm-measurer.duckdns.org'];
+  const allowedOrigins = ['http://localhost:5173', 'https://itf-sbm-measurer.duckdns.org', '*'];
   const origin = req.headers.origin;
 
   if (allowedOrigins.includes(origin)) {
@@ -415,6 +415,21 @@ app.get('/api/customers/:id', async (req, res, next) => {
     .then(([rows, columns]) => rows[0])
     .then((row) => row ? res.json({ message: row }) : res.status(404).json({ message: 'Customer not found' }))
     .catch(next);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Post Customers
+app.post('/api/customers', async (req, res, next) => {
+  try {
+    /*
+    database.raw('SELECT * FROM sbmqb_customers')
+    .then(([rows, columns]) => rows)
+    .then((row) => res.json({ message: row }))
+    .catch(next);*/
+    console.log(req)
+    res.json({ message: "Llego satisfactoriamente." })
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
