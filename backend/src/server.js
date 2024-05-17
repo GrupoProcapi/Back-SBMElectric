@@ -25,14 +25,14 @@ app.use(morgan("common"));
 
 // Middleware para permitir CORS desde múltiples dominios
 app.use((req, res, next) => {
-  const allowedOrigins = ['http://localhost:5173', 'https://itf-sbm-measurer.duckdns.org', '*'];
+  const allowedOrigins = ['*'];
   const origin = req.headers.origin;
 
   if (allowedOrigins.includes(origin)) {
       res.header('Access-Control-Allow-Origin', origin);
   }
 
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, api-key');
   next();
 });
 
@@ -40,7 +40,7 @@ app.get("/", function(req, res, next) {
   res.json({ application: "SBM Measurer API", version: 1 })
 });
 
-app.use(apiKeyValidator);
+//app.use(apiKeyValidator);
 
 app.get("/schema", function(req, res, next) {
   database.raw('CREATE DATABASE sbm_electric_measurement')
