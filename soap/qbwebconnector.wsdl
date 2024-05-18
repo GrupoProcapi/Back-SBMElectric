@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+             xmlns:tns="http://developer.intuit.com/"
+             xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+             xmlns="http://schemas.xmlsoap.org/wsdl/"
+             name="QBWebConnectorSvc"
+             targetNamespace="http://developer.intuit.com/">
+  <types>
+    <xsd:schema targetNamespace="http://developer.intuit.com/">
+      <xsd:element name="serverVersion">
+        <xsd:complexType/>
+      </xsd:element>
+      <xsd:element name="serverVersionResponse">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="serverVersionResult" type="xsd:string"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+      <!-- Define los demás elementos y tipos aquí -->
+    </xsd:schema>
+  </types>
+  <message name="serverVersionRequest">
+    <part name="parameters" element="tns:serverVersion"/>
+  </message>
+  <message name="serverVersionResponse">
+    <part name="parameters" element="tns:serverVersionResponse"/>
+  </message>
+  <!-- Define los demás mensajes aquí -->
+  <portType name="QBWebConnectorSvcSoap">
+    <operation name="serverVersion">
+      <input message="tns:serverVersionRequest"/>
+      <output message="tns:serverVersionResponse"/>
+    </operation>
+    <!-- Define las demás operaciones aquí -->
+  </portType>
+  <binding name="QBWebConnectorSvcSoap" type="tns:QBWebConnectorSvcSoap">
+    <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+    <operation name="serverVersion">
+      <soap:operation soapAction=""/>
+      <input>
+        <soap:body use="literal"/>
+      </input>
+      <output>
+        <soap:body use="literal"/>
+      </output>
+    </operation>
+    <!-- Define las demás operaciones aquí -->
+  </binding>
+  <service name="QBWebConnectorSvc">
+    <documentation>QuickBooks Web Connector Service</documentation>
+    <port name="QBWebConnectorSvcSoap" binding="tns:QBWebConnectorSvcSoap">
+      <soap:address location="http://localhost:4747/soap"/>
+    </port>
+  </service>
+</definitions>
