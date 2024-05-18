@@ -38,7 +38,7 @@ services:
       context: soap
       target: development
     restart: unless-stopped
-    command: npm run start-watch
+    command: npm run start
     environment:
       - DATABASE_DB=example
       - DATABASE_USER=root
