@@ -13,11 +13,11 @@ WORKDIR /code
 # default to port 80 for node, and 9229 and 9230 (tests) for debug
 ARG PORT=4747
 ENV PORT $PORT
-EXPOSE $PORT
+EXPOSE $PORT 9229 9230
 
 COPY package.json /code/package.json
 COPY package-lock.json /code/package-lock.json
-RUN npm i
+RUN npm ci
 
 # copy in our source code last, as it changes the most
 COPY . /code
