@@ -14,8 +14,8 @@ services:
       - DATABASE_PORT=3306
       - NODE_ENV=development
     ports:
-      - 80:80
-      - 4747:4747
+    #  - 80:80
+    #  - 4747:4747
       - 9229:9229
       - 9230:9230
     secrets:
