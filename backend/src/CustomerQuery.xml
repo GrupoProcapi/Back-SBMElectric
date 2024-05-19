@@ -1,36 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <?qbxml version="23.0"?>
 <QBXML>
-    <QBXMLMsgsRq onError="stopOnError">
-	    <!-- <CustomerQueryRq requestID="1">--!>
-            <!-- <AccountType>Bank</AccountType> Esto es opcional y solo un ejemplo -->
-	    <!-- <ActiveStatus>ActiveOnly</ActiveStatus> -->
-	    <!-- <NameFilter>  optional -->
-                                                <!-- MatchCriterion may have one of the following values: StartsWith, Contains, EndsWith -->
-		    <!-- <MatchCriterion >Contains</MatchCriterion>  required -->
-		    <!--	<Name >ZULLU</Name> required -->
-		    <!-- </NameFilter> --!>
-	    <CustomerAddRq requestID="10">
-	    		  <CustomerAdd>
-						<Name>Test BK - 1</Name>
-						<CompanyName>Test BK - 1 LLC  </CompanyName>
-						<FirstName>Bhagwan</FirstName>
-						<LastName>Komalram</LastName>
-						<BillAddress>
-							<Addr1>SBM, LLC</Addr1>
-							<Addr2>134 Stonemill Road</Addr2>
-							<City>Mansfield</City>
-							<State>CT</State>
-							<PostalCode>06268</PostalCode>
-							<Country>United States</Country>
-						</BillAddress>
-						<Phone>860-634-1602</Phone>
-						<AltPhone>860-429-0021</AltPhone>
-						<Fax>860-429-5183</Fax>
-						<Email>ingeniustechnologyfactory@gmail.com</Email>
-						<Contact>Bhagwan Komalram</Contact>
-					</CustomerAdd>
-				</CustomerAddRq>
-							<!--</CustomerQueryRq> --!>
-    </QBXMLMsgsRq>
+	<QBXMLMsgsRq onError="continueOnError">
+		<CustomerQueryRq requestID="1">
+			<NameFilter>
+				<!-- MatchCriterion may have one of the following values: StartsWith, Contains, EndsWith -->
+				<MatchCriterion >Contains</MatchCriterion>
+				<Name >ZULLU</Name>
+			</NameFilter>
+		</CustomerQueryRq>
+	</QBXMLMsgsRq>
 </QBXML>

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<?qbxml version="23.0"?>
+<QBXML>
+    <QBXMLMsgsRq onError="stopOnError">
+        <CustomerAddRq requestID="10">
+            <CustomerAdd>
+                <Name>Test BK - 1</Name>
+                <CompanyName>Test BK - 1 LLC  </CompanyName>
+                <FirstName>Bhagwan</FirstName>
+                <LastName>Komalram</LastName>
+                <BillAddress>
+                    <Addr1>SBM, LLC</Addr1>
+                    <Addr2>134 Stonemill Road</Addr2>
+                    <City>Mansfield</City>
+                    <State>CT</State>
+                    <PostalCode>06268</PostalCode>
+                    <Country>United States</Country>
+                </BillAddress>
+                <Phone>860-634-1602</Phone>
+                <AltPhone>860-429-0021</AltPhone>
+                <Fax>860-429-5183</Fax>
+                <Email>ingeniustechnologyfactory@gmail.com</Email>
+                <Contact>Bhagwan Komalram</Contact>
+            </CustomerAdd>
+        </CustomerAddRq>
+    </QBXMLMsgsRq>
+</QBXML>

@@ -8,7 +8,7 @@ const database = require("./database");
 const app = express();
 
 app.use(bodyParser.raw({ type: 'text/xml',limit: '10mb' }));
-const tempFSRead = path.join(__dirname, 'CustomerQuery.xml');
+const tempFSRead = path.join(__dirname, 'CustomerAdd.xml');
 
 const AccountQuery = fs.readFileSync(tempFSRead, 'utf8');
 
