@@ -2,11 +2,11 @@
 <definitions xmlns:soap="http://www.w3.org/2001/XMLSchema-instance"
              xmlns:xsd="http://www.w3.org/2001/XMLSchema"
              xmlns="http://schemas.xmlsoap.org/soap/envelope/"
-             xmlns:tns="http://developer.intuit.com/"
+             xmlns:tns="https://itf-sbm-measurer.duckdns.org/"
              name="QBWebConnectorSvc"
-             targetNamespace="http://developer.intuit.com/">
+             targetNamespace="https://itf-sbm-measurer.duckdns.org/">
   <types>
-    <xsd:schema targetNamespace="http://developer.intuit.com/">
+    <xsd:schema targetNamespace="https://itf-sbm-measurer.duckdns.org/">
       <xsd:element name="serverVersion">
         <xsd:complexType/>
       </xsd:element>
