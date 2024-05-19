@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<definitions xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
-             xmlns:tns="http://developer.intuit.com/"
+<definitions xmlns:soap="http://www.w3.org/2001/XMLSchema-instance"
              xmlns:xsd="http://www.w3.org/2001/XMLSchema"
-             xmlns="http://schemas.xmlsoap.org/wsdl/"
+             xmlns="http://schemas.xmlsoap.org/soap/envelope/"
+             xmlns:tns="http://developer.intuit.com/"
              name="QBWebConnectorSvc"
              targetNamespace="http://developer.intuit.com/">
   <types>
@@ -24,7 +24,7 @@
     <part name="parameters" element="tns:serverVersion"/>
   </message>
   <message name="serverVersionResponse">
-    <part name="parameters" element="tns:serverVersionResponse"/>
+    <part name="parameters" element="serverVersionResponse"/>
   </message>
   <!-- Define los demás mensajes aquí -->
   <portType name="QBWebConnectorSvcSoap">
@@ -50,7 +50,7 @@
   <service name="QBWebConnectorSvc">
     <documentation>QuickBooks Web Connector Service</documentation>
     <port name="QBWebConnectorSvcSoap" binding="tns:QBWebConnectorSvcSoap">
-      <soap:address location="http://localhost:4747/soap"/>
+      <soap:address location="https://itf-sbm-measurer.duckdns.org/qbwc?wsdl"/>
     </port>
   </service>
 </definitions>

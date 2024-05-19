@@ -17,7 +17,7 @@ const serverSOAP = appSOAP.listen(portSOAP, () => {
   console.log(`SOAP server listening on port ${portSOAP}`);
 });
 
-soap.listen(appSOAP, '/ws-soap', service, xml);
+soap.listen(appSOAP, '/qbwc', service, xml);
 
 //
 // need this in docker container to properly exit since node doesn't handle SIGINT/SIGTERM
