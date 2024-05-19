@@ -14,11 +14,13 @@
     "test-wait-debuger": "cross-env NODE_ENV=test PORT=8081 mocha --no-timeouts --exit --inspect-brk=0.0.0.0:9230"
   },
   "dependencies": {
+    "body-parser": "^1.20.2",
     "express": "^4.17.1",
     "express-validator": "^7.0.1",
     "knex": "^0.95.11",
     "morgan": "^1.10.0",
-    "mysql2": "^2.3.3"
+    "mysql2": "^2.3.3",
+    "soap": "^1.0.3"
   },
   "devDependencies": {
     "chai": "^4.2.0",

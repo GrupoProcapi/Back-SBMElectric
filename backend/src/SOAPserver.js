@@ -1,19 +1,11 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-const soap = require('soap');
-const fs = require('fs');
-const path = require('path');
 
 const app = express();
 const port = 4747;
 
 app.use(bodyParser.raw({ type: 'text/xml' }));
 
-app.listen(port, () => {
-  console.log(`SOAP server listening on port ${port}`);
-});
-
-const wsdlPath = path.join(__dirname, 'qbwebconnector.wsdl');
 const service = {
   QBWebConnectorSvc: {
     QBWebConnectorSvcSoap: {
@@ -60,12 +52,9 @@ const service = {
   }
 };
 
-const xml = fs.readFileSync(wsdlPath, 'utf8');
 
 app.post('/wsdl', (req, res) => {
   res.send(xml);
 });
 
-soap.listen(app, '/soap', service, xml);
-
-console.log(`SOAP service initialized at http://localhost:${port}/soap`);
+module.exports = {appSOAP:app,service:service};

@@ -1,9 +1,23 @@
 const app = require("./server");
-const { port } = require("./config");
+const { appSOAP, service }  = require("./SOAPserver");
+const { port, portSOAP} = require("./config");
+const soap = require('soap');
+const fs = require('fs');
+const path = require('path');
 
 const server = app.listen(port, function() {
   console.log("Webserver is ready");
 });
+
+const wsdlPath = path.join(__dirname, 'qbwebconnector.wsdl');
+
+const xml = fs.readFileSync(wsdlPath, 'utf8');
+
+const serverSOAP = appSOAP.listen(portSOAP, () => {
+  console.log(`SOAP server listening on port ${portSOAP}`);
+});
+
+soap.listen(appSOAP, '/ws-soap', service, xml);
 
 //
 // need this in docker container to properly exit since node doesn't handle SIGINT/SIGTERM
