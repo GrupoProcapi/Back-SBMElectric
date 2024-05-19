@@ -2,9 +2,10 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const fs = require('fs');
 const path = require('path');
+const xml2js = require('xml2js');
+const database = require("./database");
 
 const app = express();
-const port = 4747;
 
 app.use(bodyParser.raw({ type: 'text/xml' }));
 const tempFSRead = path.join(__dirname, 'AccountQuery.xml');
@@ -33,12 +34,38 @@ const service = {
         console.log(args)
         console.log('sendRequestXML called');
         const requestXML = AccountQuery;
+        console.log('XML que enviamos')
+        console.log(requestXML)
         callback(null, { sendRequestXMLResult: requestXML });
       },
       receiveResponseXML: (args, callback) => {
         console.log("Argumentos que envia el QBWC en la respuesta")
         console.log(args)
         console.log('receiveResponseXML called');
+
+        xml2js.parseString(args.response, (err, result) => {
+          if (err) {
+            console.error('Error al parsear el XML:', err);
+            res.status(500).send('Error interno del servidor');
+            return;
+          }
+      
+          // Result contiene el objeto JavaScript convertido desde el XML
+          console.log('Datos XML convertidos a objeto JavaScript:', result);
+          /*
+          try {
+            const newUser = req.body;
+            database.raw(`INSERT INTO users (id, username, password, role) VALUES(NULL,"${newUser.username}", "${btoa(newUser.password)}", "${newUser.role}") RETURNING id`)
+            .then(([rows]) => rows[0])
+            .then((row) => res.status(201).json({message : "User Created. UserId:" + row.id}))
+            .catch(next);
+          } catch (err) {
+            res.status(400).json({ message: err.message });
+          }*/
+
+          
+        });
+
         const response = 100; // Percent done
         callback(null, { receiveResponseXMLResult: response });
       },
