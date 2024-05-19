@@ -16,7 +16,7 @@ const service = {
       },
       clientVersion: (args, callback) => {
         console.log('clientVersion called');
-        callback(null, { clientVersionResult: { 'statusCode': '0', 'message': '' } });
+        callback(null, { clientVersionResult: { 'statusCode': '', 'message': '' } });
       },
       authenticate: (args, callback) => {
         console.log('authenticate called');
