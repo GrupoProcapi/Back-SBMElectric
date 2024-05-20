@@ -8,7 +8,7 @@ const database = require("./database");
 const app = express();
 
 app.use(bodyParser.raw({ type: 'text/xml',limit: '10mb' }));
-const tempFSRead = path.join(__dirname, 'CustomerAdd.xml');
+const tempFSRead = path.join(__dirname, 'CustomerQuery.xml');
 
 const AccountQuery = fs.readFileSync(tempFSRead, 'utf8');
 
@@ -52,14 +52,14 @@ const service = {
       
           // Result contiene el objeto JavaScript convertido desde el XML
           console.log('Datos XML convertidos a objeto JavaScript:', result);
-	  console.log(result.QBXML.QBXMLMsgsRs[0].AccountQueryRs)
+	  //console.log(result.QBXML.QBXMLMsgsRs[0].AccountQueryRs)
 	
 
-	  if (result.QBXML.QBXMLMsgsRs[0].AccountQueryRs[0].$.statusMessage == 'Status OK') {
+	  /*if (result.QBXML.QBXMLMsgsRs[0].AccountQueryRs[0].$.statusMessage == 'Status OK') {
             result.QBXML.QBXMLMsgsRs[0].AccountQueryRs[0].AccountRet.forEach(element => {
               console.log(element)
             });
-          }
+          }*/
 		/*
           try {
             const newUser = req.body;

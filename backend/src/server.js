@@ -25,7 +25,7 @@ app.use(morgan("common"));
 
 // Middleware para permitir CORS desde múltiples dominios
 app.use((req, res, next) => {
-  const allowedOrigins = ['*'];
+  const allowedOrigins = ['http://localhost:5173','*'];
   const origin = req.headers.origin;
 
   if (allowedOrigins.includes(origin)) {
