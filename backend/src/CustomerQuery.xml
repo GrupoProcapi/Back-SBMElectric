@@ -3,11 +3,11 @@
 <QBXML>
 	<QBXMLMsgsRq onError="continueOnError">
 		<CustomerQueryRq requestID="1">
-			<NameFilter>
+			<!--<NameFilter>-->
 				<!-- MatchCriterion may have one of the following values: StartsWith, Contains, EndsWith -->
-				<MatchCriterion >Contains</MatchCriterion>
-				<Name >ZULLU</Name>
-			</NameFilter>
+				<!--<MatchCriterion >Contains</MatchCriterion>-->
+				<!--<Name >ZULLU</Name>-->
+			<!--</NameFilter> -->
 		</CustomerQueryRq>
 	</QBXMLMsgsRq>
 </QBXML>
