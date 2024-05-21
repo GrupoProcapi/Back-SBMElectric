@@ -18,6 +18,10 @@ const serverSOAP = appSOAP.listen(portSOAP, () => {
   console.log(`SOAP server listening on port ${portSOAP}`);
 });
 
+const serverInvoiceSOAP = invoiceSOAP.listen(4748, () => {
+  console.log(`SOAP server listening on port 4748`);
+});
+
 soap.listen(appSOAP, '/qbwc', service, xml);
 soap.listen(invoiceSOAP, '/invoice', invoiceService, xml);
 
