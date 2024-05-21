@@ -55,23 +55,45 @@ const service = {
 	  //console.log(result.QBXML.QBXMLMsgsRs[0].AccountQueryRs)
 	
 
-	  /*if (result.QBXML.QBXMLMsgsRs[0].AccountQueryRs[0].$.statusMessage == 'Status OK') {
-            result.QBXML.QBXMLMsgsRs[0].AccountQueryRs[0].AccountRet.forEach(element => {
+	        if (result.QBXML.QBXMLMsgsRs[0].CustomerQueryRs[0].$.statusMessage == 'Status OK') {
+            result.QBXML.QBXMLMsgsRs[0].CustomerQueryRs[0].CustomerRet.forEach(element => {
               console.log(element)
+              /**
+               * {
+                    ListID: [ '800013C8-1645199437' ],
+                    TimeCreated: [ '2022-02-18T10:50:37-05:00' ],
+                    TimeModified: [ '2022-09-27T14:30:24-05:00' ],
+                    EditSequence: [ '1664307024' ],
+                    Name: [ 'ZULLU' ],
+                    FullName: [ 'ZULLU' ],
+                    IsActive: [ 'true' ],
+                    Sublevel: [ '0' ],
+                    CompanyName: [ 'ZULLU, Capitole Finance Tofinso' ],
+                    BillAddress: [ [Object] ],
+                    BillAddressBlock: [ [Object] ],
+                    Phone: [ '+33606850292' ],
+                    Contact: [ '_' ],
+                    AltContact: [ '_' ],
+                    Balance: [ '0.00' ],
+                    TotalBalance: [ '0.00' ],
+                    SalesTaxCodeRef: [ [Object] ],
+                    ItemSalesTaxRef: [ [Object] ],
+                    JobStatus: [ 'None' ]
+                  }
+               */
+              
+                  try {
+                    var status =  element.IsActive[0] ? "ACTIVE" : "SUSPENDED"
+                    database.raw(`INSERT INTO sbmqb_customers (sbmqb_id, name, class, status) VALUES(NULL,"${element.ListID[0]}", "${element.FullName[0]}", "MARINA", "${status}")`)
+                    .then(([rows]) => rows[0])
+                    .then((row) => console.log({message : "sbmqb_customers Created. CustomerID:" + element.ListID[0]}))
+                    .catch(next);
+                  } catch (err) {
+                    console.log({ message: err.message });
+                  }
+                  //
             });
-          }*/
-		/*
-          try {
-            const newUser = req.body;
-            database.raw(`INSERT INTO users (id, username, password, role) VALUES(NULL,"${newUser.username}", "${btoa(newUser.password)}", "${newUser.role}") RETURNING id`)
-            .then(([rows]) => rows[0])
-            .then((row) => res.status(201).json({message : "User Created. UserId:" + row.id}))
-            .catch(next);
-          } catch (err) {
-            res.status(400).json({ message: err.message });
-          }*/
-
-          
+          }
         });
 
         const response = 100; // Percent done
