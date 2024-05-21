@@ -1,10 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <?qbxml version="7.0"?>
 <QBXML>
-    <QBXMLMsgsRq onError="stopOnError">
-        <CustomerQueryRq requestID="1">
-            <!-- <AccountType>Bank</AccountType> Esto es opcional y solo un ejemplo -->
-            <ActiveStatus>ActiveOnly</ActiveStatus>
-        </CustomerQueryRq>
-    </QBXMLMsgsRq>
+	<QBXMLMsgsRq onError="continueOnError">
+		<CustomerQueryRq requestID="1">
+			<NameFilter>
+				<!-- MatchCriterion may have one of the following values: StartsWith, Contains, EndsWith -->
+				<MatchCriterion >Contains</MatchCriterion>
+				<Name >ZULLU</Name>
+			</NameFilter>
+		</CustomerQueryRq>
+	</QBXMLMsgsRq>
 </QBXML>
