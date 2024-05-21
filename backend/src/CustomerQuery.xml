@@ -8,6 +8,10 @@
 				<MatchCriterion>Contains</MatchCriterion>
 				<Name>a</Name>
 			</NameFilter>
+			<IncludeRetElement>ListID</IncludeRetElement>
+     		<IncludeRetElement>Name</IncludeRetElement>
+			<IncludeRetElement>FullName</IncludeRetElement>
+			<IncludeRetElement>CompanyName</IncludeRetElement>
 		</CustomerQueryRq>
 	</QBXMLMsgsRq>
 </QBXML>
