@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<?qbxml version="7.0"?>
+<QBXML>
+	<QBXMLMsgsRq onError="continueOnError">
+		<InvoiceQueryRq requestID="4">
+			<RefNumber >208355</RefNumber>
+		</InvoiceQueryRq>
+	</QBXMLMsgsRq>
+</QBXML>

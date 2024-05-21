@@ -18,5 +18,22 @@
 				<Rate>50.00</Rate>
 			</InvoiceLineAdd>
 		</InvoiceAdd>
+
+		<InvoiceAddRq requestID = "0">
+      <InvoiceAdd defMacro = "TxnID:NewInvoice">
+        <CustomerRef>
+          <FullName>Bhagwan Komalram</FullName>
+        </CustomerRef>
+        <TemplateRef>
+          <FullName>SHELTER BAY INVOICE2019</FullName>
+        </TemplateRef>
+        <InvoiceLineAdd>
+          <ItemRef>
+            <FullName>4113 · INGRESOS ELECTRIDIDAD:70000:70001-Metered elect. @ 0.415/KW</FullName>
+          </ItemRef>
+          <Rate>100.00</Rate>
+        </InvoiceLineAdd>
+      </InvoiceAdd>
+    </InvoiceAddRq>
 	</QBXMLMsgsRq>
 </QBXML>
