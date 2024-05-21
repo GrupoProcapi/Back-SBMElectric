@@ -13,7 +13,7 @@
      		<IncludeRetElement>Name</IncludeRetElement>
 			<IncludeRetElement>FullName</IncludeRetElement>
 			<IncludeRetElement>CompanyName</IncludeRetElement>
-			
+			<IncludeRetElement>IsActive</IncludeRetElement>
 		</CustomerQueryRq>
 	</QBXMLMsgsRq>
 </QBXML>
