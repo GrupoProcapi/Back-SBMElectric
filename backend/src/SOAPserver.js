@@ -84,7 +84,7 @@ const service = {
               
                   try {
                     var status =  element.IsActive[0] ? "ACTIVE" : "SUSPENDED"
-                    database.raw(`INSERT INTO sbmqb_customers (sbmqb_id, name, class, status) VALUES(NULL,"${element.ListID[0]}", "${element.FullName[0]}", "MARINA", "${status}")`)
+                    database.raw(`INSERT INTO sbmqb_customers (sbmqb_id, name, class, status) VALUES("${element.ListID[0]}", "${element.FullName[0]}", "MARINA", "${status}")`)
                     .then(([rows]) => rows[0])
                     .then((row) => console.log({message : "sbmqb_customers Created. CustomerID:" + element.ListID[0]}))
                     .catch(next);
