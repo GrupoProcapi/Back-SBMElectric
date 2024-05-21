@@ -2,8 +2,8 @@
 <?qbxml version="7.0"?>
 <QBXML>
 	<QBXMLMsgsRq onError="continueOnError">
-		<CustomerQueryRq requestID="1">
-			<ActiveStatus >ActiveOnly</ActiveStatus>
+		<CustomerQueryRq requestID="1" iterator="Start">
+			<MaxReturned>100</MaxReturned>
 		</CustomerQueryRq>
 	</QBXMLMsgsRq>
 </QBXML>
