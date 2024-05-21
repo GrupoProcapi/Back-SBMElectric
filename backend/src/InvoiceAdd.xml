@@ -14,9 +14,9 @@
 				<TxnDate>2024-05-20</TxnDate>
 				<InvoiceLineAdd>
 					<ItemRef>
-						<FullName>4113 · INGRESOS ELECTRIDIDAD:70000:70001-Metered elect. @ 0.415/KW</FullName>
+						<FullName>Blueprint Changes</FullName>
 					</ItemRef>
-					<Rate>100.00</Rate>
+					<Amount>100.00</Amount>
 				</InvoiceLineAdd>
 			</InvoiceAdd>
 		</InvoiceAddRq>
