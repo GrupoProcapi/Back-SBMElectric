@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <?qbxml version="7.0"?>
 <QBXML>
-	<QBXMLMsgsRq onError="continueOnError">
-		<CustomerQueryRq requestID="1" iterator="Start">
-			<MaxReturned>100</MaxReturned>
-		</CustomerQueryRq>
-	</QBXMLMsgsRq>
+    <QBXMLMsgsRq onError="stopOnError">
+        <CustomerQueryRq requestID="1">
+            <!-- <AccountType>Bank</AccountType> Esto es opcional y solo un ejemplo -->
+            <ActiveStatus>ActiveOnly</ActiveStatus>
+        </CustomerQueryRq>
+    </QBXMLMsgsRq>
 </QBXML>
