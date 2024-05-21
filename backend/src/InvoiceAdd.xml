@@ -14,9 +14,9 @@
 				<TxnDate>2024-05-20</TxnDate>
 				<InvoiceLineAdd>
 					<ItemRef>
-						<FullName>Blueprint Changes</FullName>
+						<FullName>70001-Metered elect. @ 0.415/KW</FullName>
 					</ItemRef>
-					<Amount>100.00</Amount>
+					<Quantity >40</Quantity>
 				</InvoiceLineAdd>
 			</InvoiceAdd>
 		</InvoiceAddRq>
