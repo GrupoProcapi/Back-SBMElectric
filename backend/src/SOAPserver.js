@@ -124,8 +124,13 @@ const service = {
                     .then(([rows]) => rows[0])
                     .then((row) => {
                       if (!row) {
+
+                        var companyName = ""
+                        if (element.CompanyName)
+                          companyName = element.CompanyName[0]
+
                         var status =  element.IsActive[0] ? "ACTIVE" : "SUSPENDED"
-                        database.raw(`INSERT INTO sbmqb_customers (sbmqb_id, name, full_name, company_name, class, status) VALUES("${element.ListID[0]}", "${element.Name[0]}" , "${element.FullName[0]}", "${element.CompanyName[0]}", "MARINA", "${status}")`)
+                        database.raw(`INSERT INTO sbmqb_customers (sbmqb_id, name, full_name, company_name, class, status) VALUES("${element.ListID[0]}", "${element.Name[0]}" , "${element.FullName[0]}", "${companyName}", "MARINA", "${status}")`)
                         .then(([line]) => line[0])
                         .then((line) => console.log({message : "sbmqb_customers Created. CustomerID:" + element.ListID[0]}))
                         .catch(console.log({message : "Error Insertando " + element.ListID[0]}));
