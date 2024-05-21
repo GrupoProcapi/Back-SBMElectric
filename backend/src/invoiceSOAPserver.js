@@ -53,9 +53,7 @@ const service = {
           // Result contiene el objeto JavaScript convertido desde el XML
           console.log('Datos XML convertidos a objeto JavaScript:', result);
 	        //console.log(result.QBXML.QBXMLMsgsRs[0].AccountQueryRs)
-          result.QBXML.QBXMLMsgsRs[0].ItemServiceQueryRq[0].ItemServiceRet.forEach(element => {
-            console.log(element)
-          })
+    
         });
 
         const response = 100; // Percent done
