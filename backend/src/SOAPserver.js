@@ -80,18 +80,63 @@ const service = {
                     ItemSalesTaxRef: [ [Object] ],
                     JobStatus: [ 'None' ]
                   }
+
+                  XML
+                  '<CustomerRet>\n' +
+    '<ListID>800013C8-1645199437</ListID>\n' +
+    '<TimeCreated>2022-02-18T10:50:37-05:00</TimeCreated>\n' +
+    '<TimeModified>2022-09-27T14:30:24-05:00</TimeModified>\n' +
+    '<EditSequence>1664307024</EditSequence>\n' +
+    '<Name>ZULLU</Name>\n' +
+    '<FullName>ZULLU</FullName>\n' +
+    '<IsActive>true</IsActive>\n' +
+    '<Sublevel>0</Sublevel>\n' +
+    '<CompanyName>ZULLU, Capitole Finance Tofinso</CompanyName>\n' +
+    '<BillAddress>\n' +
+    '<Addr1>ZULLU, Capitole Finance- Tofinso</Addr1>\n' +
+    '<State>Capitole</State>\n' +
+    '<Note>39 BD mondou 34510 florensac</Note>\n' +
+    '</BillAddress>\n' +
+    '<BillAddressBlock>\n' +
+    '<Addr1>ZULLU, Capitole Finance- Tofinso</Addr1>\n' +
+    '<Addr2>39 BD mondou 34510 florensac</Addr2>\n' +
+    '</BillAddressBlock>\n' +
+    '<Phone>+33606850292</Phone>\n' +
+    '<Contact>_</Contact>\n' +
+    '<AltContact>_</AltContact>\n' +
+    '<Balance>0.00</Balance>\n' +
+    '<TotalBalance>0.00</TotalBalance>\n' +
+    '<SalesTaxCodeRef>\n' +
+    '<ListID>80000003-1663700909</ListID>\n' +
+    '<FullName>7%</FullName>\n' +
+    '</SalesTaxCodeRef>\n' +
+    '<ItemSalesTaxRef>\n' +
+    '<ListID>80002244-1664293716</ListID>\n' +
+    '<FullName>7%</FullName>\n' +
+    '</ItemSalesTaxRef>\n' +
+    '<JobStatus>None</JobStatus>\n' +
+    '</CustomerRet>\n' +
                */
               
                   try {
-                    var status =  element.IsActive[0] ? "ACTIVE" : "SUSPENDED"
-                    database.raw(`INSERT INTO sbmqb_customers (sbmqb_id, name, class, status) VALUES("${element.ListID[0]}", "${element.FullName[0]}", "MARINA", "${status}")`)
+                    //Verification
+                    database.raw(`SELECT * FROM sbmqb_customers WHERE sbmqb_id = "${element.ListID[0]}" AND STATUS = "ACTIVE")`)
                     .then(([rows]) => rows[0])
-                    .then((row) => console.log({message : "sbmqb_customers Created. CustomerID:" + element.ListID[0]}))
-                    .catch(next);
+                    .then((row) => {
+                      if (!condition) {
+                        var status =  element.IsActive[0] ? "ACTIVE" : "SUSPENDED"
+                        database.raw(`INSERT INTO sbmqb_customers (sbmqb_id, name, full_name, company_name, class, status) VALUES("${element.ListID[0]}", "${element.Name[0]}" , "${element.FullName[0]}", "${element.CompanyName[0]}", "MARINA", "${status}")`)
+                        .then(([rows]) => rows[0])
+                        .then((row) => console.log({message : "sbmqb_customers Created. CustomerID:" + element.ListID[0]}))
+                        .catch(console.log({message : "Error Insertando " + element.ListID[0]}));
+                      } else {
+                        console.log({message : "sbmqb_customers Exist. CustomerID:" + element.ListID[0]})
+                      }
+                    })
+                    .catch(console.log({message : "Error seleccionando " + element.ListID[0]}));
                   } catch (err) {
                     console.log({ message: err.message });
                   }
-                  //
             });
           }
         });

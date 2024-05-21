@@ -1,21 +1,23 @@
 exports.up = function(knex) {
     return knex.schema
     .createTable('sbmqb_customers', function (table) {
-      table.integer('sbmqb_id');
+      table.string('sbmqb_id');
       table.string('name', 300).notNullable();
+      table.string('full_name', 300).notNullable();
+      table.string('company_name', 300).notNullable();
       table.enu('class', ['MARINA', 'EDIFICIO']);
       table.enu('status', ['ACTIVE', 'SUSPENDED', 'TERMINATED']);
     })
     .createTable('sbmqb_services', function (table) {
-      table.integer('sbmqb_id');
+      table.string('sbmqb_id');
       table.string('service_type', 200).notNullable();
       table.string('description', 400).notNullable();
       table.decimal('price').notNullable();
     })
     .createTable('sbmqb_customer_services', function (table) {
       table.increments('id');
-      table.integer('sbmqb_customer_id').notNullable();
-      table.integer('sbmqb_service_id').notNullable();
+      table.string('sbmqb_customer_id').notNullable();
+      table.string('sbmqb_service_id').notNullable();
       table.integer('measurer_id').notNullable();
       table.timestamp('begin_date', { precision: 6 }).defaultTo(knex.fn.now(6));;
       table.timestamp('end_date', { precision: 6 })
