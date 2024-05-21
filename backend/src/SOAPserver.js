@@ -120,14 +120,14 @@ const service = {
               
                   try {
                     //Verification
-                    database.raw(`SELECT * FROM sbmqb_customers WHERE sbmqb_id = "${element.ListID[0]}" AND STATUS = "ACTIVE")`)
+                    database.raw(`SELECT * FROM sbmqb_customers WHERE sbmqb_id = "${element.ListID[0]}" AND STATUS = "ACTIVE"`)
                     .then(([rows]) => rows[0])
                     .then((row) => {
-                      if (!condition) {
+                      if (!row) {
                         var status =  element.IsActive[0] ? "ACTIVE" : "SUSPENDED"
                         database.raw(`INSERT INTO sbmqb_customers (sbmqb_id, name, full_name, company_name, class, status) VALUES("${element.ListID[0]}", "${element.Name[0]}" , "${element.FullName[0]}", "${element.CompanyName[0]}", "MARINA", "${status}")`)
-                        .then(([rows]) => rows[0])
-                        .then((row) => console.log({message : "sbmqb_customers Created. CustomerID:" + element.ListID[0]}))
+                        .then(([line]) => line[0])
+                        .then((line) => console.log({message : "sbmqb_customers Created. CustomerID:" + element.ListID[0]}))
                         .catch(console.log({message : "Error Insertando " + element.ListID[0]}));
                       } else {
                         console.log({message : "sbmqb_customers Exist. CustomerID:" + element.ListID[0]})
