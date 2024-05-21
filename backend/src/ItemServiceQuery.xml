@@ -3,6 +3,10 @@
 <QBXML>
 	<QBXMLMsgsRq onError="continueOnError">
 		<ItemServiceQueryRq requestID="4">
+			<NameFilter>
+				<MatchCriterion >Contains</MatchCriterion>
+				<Name >ELECTRI</Name>
+			</NameFilter>
 		</ItemServiceQueryRq>
 	</QBXMLMsgsRq>
 </QBXML>
