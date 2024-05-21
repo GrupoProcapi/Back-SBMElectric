@@ -3,6 +3,7 @@
 <QBXML>
 	<QBXMLMsgsRq onError="continueOnError">
 		<CustomerQueryRq requestID="1">
+			<ActiveStatus >ActiveOnly</ActiveStatus>
 		</CustomerQueryRq>
 	</QBXMLMsgsRq>
 </QBXML>
