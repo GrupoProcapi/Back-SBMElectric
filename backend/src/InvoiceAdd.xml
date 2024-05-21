@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<?qbxml version="7.0"?>
+<QBXML>
+	<QBXMLMsgsRq onError="stopOnError">
+		<InvoiceAdd requestID="1">
+			<CustomerRef>
+				<ListID >800013C8-1645199437</ListID>
+				<FullName >ZULLU</FullName>
+			</CustomerRef>
+			<TxnDate>2024-05-20</TxnDate>
+			<IsPending>false</IsPending>
+			<InvoiceLineAdd>
+				<ItemRef>
+					<ListID >70001</ListID>
+				</ItemRef>
+				<Desc>Descripcion de medida tomada desde el app </Desc>
+				<Quantity >1</Quantity>
+				<Rate>50.00</Rate>
+			</InvoiceLineAdd>
+		</InvoiceAdd>
+	</QBXMLMsgsRq>
+</QBXML>
