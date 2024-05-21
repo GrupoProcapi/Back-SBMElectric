@@ -83,4 +83,4 @@ app.post('/wsdl', (req, res) => {
   res.send(xml);
 });
 
-module.exports = {appSOAP:app, service:service};
+module.exports = {invoiceSOAP:app, invoiceService:service};
