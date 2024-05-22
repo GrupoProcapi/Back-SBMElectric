@@ -40,6 +40,7 @@ const service = {
             //No hay solicitudes pendientes
             if (!rows) {
               callback(null, { sendRequestXMLResult: "" });
+              return
             }
             //Mapear variables
             const today = new Date();
