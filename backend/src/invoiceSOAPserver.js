@@ -46,6 +46,7 @@ const service = {
                   </QBXMLMsgsRq>
               </QBXML>
               `
+              console.log(nonRq)
               callback(null, { sendRequestXMLResult: nonRq });
               return
             }
@@ -64,7 +65,7 @@ const service = {
             <QBXML>
               <QBXMLMsgsRq onError="stopOnError">
                 <InvoiceAddRq requestID = "${rows.id}">
-                  <InvoiceAdd defMacro = "TxnID:NewInvoice">
+                  <InvoiceAdd defMacro = "TxnID:NewInvoiceEM${rows.id}">
                     <CustomerRef>
                       <FullName>${fullName}</FullName>
                     </CustomerRef>
