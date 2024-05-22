@@ -28,12 +28,14 @@ const service = {
           .then(([rows]) => rows[0])
           .then((row) => row ?  row.id : 0)
           .then((response) => {
-            const ticket = response;
-            callback(null, { authenticateResult: { 'string': [ticket, ''] } });
+            
+            
           })
         } catch (err) {
           res.status(500).json({ message: err.message });
         }
+        const ticket = "PROCESANDO-REGISTROS-MEDIDAS";
+        callback(null, { authenticateResult: { 'string': [ticket, ''] } });
       },
       sendRequestXML: (args, callback) => {
         console.log("Argumentos que envia el QBWC")
@@ -43,7 +45,7 @@ const service = {
         
         //Sacar una medida pendiente a facturar
         try {
-          database.raw(`SELECT * FROM measurements WHERE status = "PENDIENTE" AND id = ${args.ticket} LIMIT 1`)
+          database.raw(`SELECT * FROM measurements WHERE status = "PENDIENTE" LIMIT 1`)
           .then(([rows, columns]) => rows[0])
           .then((rows) => {
             //Mapear variables
@@ -60,7 +62,7 @@ const service = {
             <?qbxml version="7.0"?>
             <QBXML>
               <QBXMLMsgsRq onError="stopOnError">
-                <InvoiceAddRq requestID = "0">
+                <InvoiceAddRq requestID = "${rows.id}">
                   <InvoiceAdd defMacro = "TxnID:NewInvoice">
                     <CustomerRef>
                       <FullName>${fullName}</FullName>
@@ -104,18 +106,24 @@ const service = {
           // Result contiene el objeto JavaScript convertido desde el XML
           console.log('Datos XML convertidos a objeto JavaScript:', result);
 	        // Verificando si existen medidas pendientes por procesar usando result
-          /*try {
-            database.raw('SELECT * FROM measurements WHERE status = "PENDIENTE" LIMIT 1')
-            .then(([rows]) => rows[0])
-            .then((row) => row ?  99 : 100)
-            .then((response) => callback(null, { receiveResponseXMLResult: response }))
+          
+          try {
+            if (result.QBXML.QBXMLMsgsRs[0].InvoiceAddRs[0].$.statusMessage == 'Status OK') {
+              //Update registro
+              database.raw(`UPDATE measurements SET status = "FACTURADO" WHERE id = ${result.QBXML.QBXMLMsgsRs[0].InvoiceAddRs[0].$.requestID}`)
+              .then(([rows]) => rows[0])
+              .then((row) => {
+                //Actualizado decide si continuar o no
+                database.raw('SELECT * FROM measurements WHERE status = "PENDIENTE" LIMIT 1')
+                .then(([rows]) => rows[0])
+                .then((row) => row ?  1 : 0)
+                .then((response) => callback(null, { receiveResponseXMLResult: response }))
+              })
+            } 
           } catch (err) {
             res.status(500).json({ message: err.message });
-          }*/
+          }
         });
-
-        const response = 100; // Percent done
-        callback(null, { receiveResponseXMLResult: response });
       },
       connectionError: (args, callback) => {
         console.log('connectionError called');
