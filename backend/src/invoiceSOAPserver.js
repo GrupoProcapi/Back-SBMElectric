@@ -39,7 +39,14 @@ const service = {
           .then((rows) => {
             //No hay solicitudes pendientes
             if (!rows) {
-              callback(null, { sendRequestXMLResult: "<QBXML><QBXMLMsgsRs><CloseConnectionRs statusCode=\"0\" statusMessage=\"Close connection requested.\"/></QBXMLMsgsRs></QBXML>" });
+              const nonRq = `<?xml version="1.0" encoding="utf-8"?>
+              <?qbxml version="7.0"?>
+              <QBXML>
+                  <QBXMLMsgsRq onError="stopOnError">
+                  </QBXMLMsgsRq>
+              </QBXML>
+              `
+              callback(null, { sendRequestXMLResult: nonRq });
               return
             }
             //Mapear variables
