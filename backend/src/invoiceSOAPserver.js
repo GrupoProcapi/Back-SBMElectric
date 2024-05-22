@@ -109,7 +109,8 @@ const service = {
 	        // Verificando si existen medidas pendientes por procesar usando result
 
           if (result.QBXML.QBXMLMsgsRs[0] == '') {
-            callback(null, { receiveResponseXMLResult: 0 })
+            console.log("Retornando 1 para la respuesta del QBWC")
+            callback(null, { receiveResponseXMLResult: 1 })
             return
           }
           
