@@ -55,7 +55,7 @@ const service = {
             var fullName =  rows.sbmqb_customer_name 
             var description = rows.description
             var qty = rows.current_measure_value - rows.last_measure_value
-            var rate = rows.service
+            var rate = rows.sbmqb_service
             const requestXML = `<?xml version="1.0" encoding="utf-8"?>
             <?qbxml version="7.0"?>
             <QBXML>
