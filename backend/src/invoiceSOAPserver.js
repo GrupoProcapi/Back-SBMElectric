@@ -23,17 +23,6 @@ const service = {
       },
       authenticate: (args, callback) => {
         console.log('authenticate called');
-        try {
-          database.raw('SELECT * FROM measurements WHERE status = "PENDIENTE" LIMIT 1')
-          .then(([rows]) => rows[0])
-          .then((row) => row ?  row.id : 0)
-          .then((response) => {
-            
-            
-          })
-        } catch (err) {
-          res.status(500).json({ message: err.message });
-        }
         const ticket = "PROCESANDO-REGISTROS-MEDIDAS";
         callback(null, { authenticateResult: { 'string': [ticket, ''] } });
       },
@@ -48,6 +37,10 @@ const service = {
           database.raw(`SELECT * FROM measurements WHERE status = "PENDIENTE" LIMIT 1`)
           .then(([rows, columns]) => rows[0])
           .then((rows) => {
+            //No hay solicitudes pendientes
+            if (!rows) {
+              callback(null, { sendRequestXMLResult: "" });
+            }
             //Mapear variables
             const today = new Date();
             const year = today.getFullYear();
@@ -117,7 +110,9 @@ const service = {
                 database.raw('SELECT * FROM measurements WHERE status = "PENDIENTE" LIMIT 1')
                 .then(([rows]) => rows[0])
                 .then((row) => row ?  1 : 0)
-                .then((response) => callback(null, { receiveResponseXMLResult: response }))
+                .then((response) => {
+                  callback(null, { receiveResponseXMLResult: response })
+                })
               })
             } 
           } catch (err) {
