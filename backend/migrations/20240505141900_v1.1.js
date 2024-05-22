@@ -10,7 +10,7 @@ exports.up = function(knex) {
     })
     .createTable('sbmqb_services', function (table) {
       table.string('sbmqb_id');
-      table.string('service_type', 200).notNullable();
+      table.string('service', 200).notNullable();
       table.string('description', 400).notNullable();
       table.decimal('price').notNullable();
     })

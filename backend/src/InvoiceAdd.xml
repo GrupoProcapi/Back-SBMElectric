@@ -11,12 +11,13 @@
 					<ListID>8000001A-1559700385</ListID>
 					<FullName>SHELTER BAY INVOICE2019</FullName>
 				</TemplateRef>
-				<TxnDate>2024-05-20</TxnDate>
+				<TxnDate>2024-05-21</TxnDate>
 				<InvoiceLineAdd>
 					<ItemRef>
 						<FullName>4113 &#183; INGRESOS ELECTRIDIDAD:70000:70002-Metered elect. @ 0.415/KW</FullName>
 					</ItemRef>
-					<Quantity >40</Quantity>
+					<Desc>Capturado desde SBM Electric Meter</Desc>
+					<Quantity >7</Quantity>
 				</InvoiceLineAdd>
 			</InvoiceAdd>
 		</InvoiceAddRq>
