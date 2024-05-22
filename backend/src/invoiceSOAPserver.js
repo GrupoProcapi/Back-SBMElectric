@@ -107,6 +107,11 @@ const service = {
           // Result contiene el objeto JavaScript convertido desde el XML
           console.log('Datos XML convertidos a objeto JavaScript:', result);
 	        // Verificando si existen medidas pendientes por procesar usando result
+
+          if (result.QBXML.QBXMLMsgsRs[0] == '') {
+            callback(null, { receiveResponseXMLResult: 0 })
+            return
+          }
           
           try {
             if (result.QBXML.QBXMLMsgsRs[0].InvoiceAddRs[0].$.statusMessage == 'Status OK') {
