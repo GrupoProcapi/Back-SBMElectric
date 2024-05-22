@@ -109,8 +109,8 @@ const service = {
 	        // Verificando si existen medidas pendientes por procesar usando result
 
           if (result.QBXML.QBXMLMsgsRs[0] == '') {
-            console.log("Retornando 1 para la respuesta del QBWC")
-            callback(null, { receiveResponseXMLResult: 1 })
+            console.log("Nada que procesar completando el 100%")
+            callback(null, { receiveResponseXMLResult: 100 })
             return
           }
           
@@ -123,7 +123,7 @@ const service = {
                 //Actualizado decide si continuar o no
                 database.raw('SELECT * FROM measurements WHERE status = "PENDIENTE" LIMIT 1')
                 .then(([rows]) => rows[0])
-                .then((row) => row ?  1 : 0)
+                .then((row) => row ?  1 : 100)
                 .then((response) => {
                   callback(null, { receiveResponseXMLResult: response })
                 })
