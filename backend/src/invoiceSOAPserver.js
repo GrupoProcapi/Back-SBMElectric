@@ -40,10 +40,15 @@ const service = {
         console.log(args)
         console.log('sendRequestXML called');
         console.log('XML que enviamos')
-        
-        //Sacar una medida pendiente a facturar
+        xml2js.parseString(args, (err, result) => {
+          if (err) {
+            console.error('Error al parsear el XML:', err);
+            res.status(500).send('Error interno del servidor');
+            return;
+          }
+          //Sacar una medida pendiente a facturar
         try {
-          database.raw(`SELECT * FROM measurements WHERE status = "PENDIENTE" AND id = ${args.ticket} LIMIT 1`)
+          database.raw(`SELECT * FROM measurements WHERE status = "PENDIENTE" AND id = ${result.ticket} LIMIT 1`)
           .then(([rows]) => {
             //Mapear variables
             const today = new Date();
@@ -87,6 +92,8 @@ const service = {
         } catch (err) {
           console.log({ message: err.message });
         }
+        
+        })
       },
       receiveResponseXML: (args, callback) => {
         console.log("Argumentos que envia el QBWC en la respuesta")
