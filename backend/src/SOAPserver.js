@@ -33,7 +33,25 @@ const service = {
         console.log("Argumentos que envia el QBWC")
         console.log(args)
         console.log('sendRequestXML called');
-        const requestXML = AccountQuery;
+        const requestXML = `<?xml version="1.0" encoding="utf-8"?>
+        <?qbxml version="7.0"?>
+        <QBXML>
+          <QBXMLMsgsRq onError="continueOnError">
+            <CustomerQueryRq requestID="1" iterator="Start">
+              <MaxReturned>100</MaxReturned> 
+              <NameFilter>
+                <!-- MatchCriterion may have one of the following values: StartsWith, Contains, EndsWith -->
+                <MatchCriterion>Contains</MatchCriterion>
+                <Name>a</Name>
+              </NameFilter>
+              <IncludeRetElement>ListID</IncludeRetElement>
+                 <IncludeRetElement>Name</IncludeRetElement>
+              <IncludeRetElement>FullName</IncludeRetElement>
+              <IncludeRetElement>CompanyName</IncludeRetElement>
+              <IncludeRetElement>IsActive</IncludeRetElement>
+            </CustomerQueryRq>
+          </QBXMLMsgsRq>
+        </QBXML>`;
         console.log('XML que enviamos')
         console.log(requestXML)
         callback(null, { sendRequestXMLResult: requestXML });
@@ -146,8 +164,10 @@ const service = {
           }
         });
 
-        const response = 100; // Percent done
-        callback(null, { receiveResponseXMLResult: response });
+        if (result.QBXML.QBXMLMsgsRs[0].CustomerQueryRs[0].$.iteratorRemainingCount == '0') 
+          callback(null, { receiveResponseXMLResult: 100 });
+        else
+          callback(null, { receiveResponseXMLResult: 50 });
       },
       connectionError: (args, callback) => {
         console.log('connectionError called');
