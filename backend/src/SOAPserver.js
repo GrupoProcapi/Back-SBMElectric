@@ -33,13 +33,23 @@ const service = {
         console.log("Argumentos que envia el QBWC")
         console.log(args)
         //iteratorRemainingCount: '5323',
-      //iteratorID: '{25dde6c2-4e4f-4b83-9709-55f98f576c12}'
+        //iteratorID: '{25dde6c2-4e4f-4b83-9709-55f98f576c12}'
+        console.log("process.env.iteratorID")
+        console.log(process.env.iteratorID)
         console.log('sendRequestXML called');
+        if (process.env.iteratorID != "") {
+          var iteratorID = `iteratorID="${process.env.iteratorID}"`
+          var iterator = 'iterator="Continue"'
+        } else {
+          var iteratorID = ''
+          var iterator = 'iterator="Start"'
+        }
+        
         const requestXML = `<?xml version="1.0" encoding="utf-8"?>
         <?qbxml version="7.0"?>
         <QBXML>
           <QBXMLMsgsRq onError="continueOnError">
-            <CustomerQueryRq requestID="1" iterator="Start">
+            <CustomerQueryRq requestID="1" ${iterator} ${iteratorID}>
               <MaxReturned>100</MaxReturned> 
               <NameFilter>
                 <!-- MatchCriterion may have one of the following values: StartsWith, Contains, EndsWith -->
@@ -165,10 +175,14 @@ const service = {
             });
             console.log("Resultado de iteratorRemainingCount")
             console.log(result.QBXML.QBXMLMsgsRs[0].CustomerQueryRs[0].$.iteratorRemainingCount)
-            if (result.QBXML.QBXMLMsgsRs[0].CustomerQueryRs[0].$.iteratorRemainingCount == '0') 
+            if (result.QBXML.QBXMLMsgsRs[0].CustomerQueryRs[0].$.iteratorRemainingCount == '0'){
+              process.env.iteratorID = ""
               callback(null, { receiveResponseXMLResult: 100 });
-            else
+            }
+            else {
+              process.env.iteratorID = result.QBXML.QBXMLMsgsRs[0].CustomerQueryRs[0].$.iteratorID
               callback(null, { receiveResponseXMLResult: 1 });
+            }
           }
         });
       },
