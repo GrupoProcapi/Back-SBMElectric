@@ -37,7 +37,7 @@ const service = {
         console.log("process.env.iteratorID")
         console.log(process.env.iteratorID)
         console.log('sendRequestXML called');
-        if (process.env.iteratorID != "") {
+        if (process.env.iteratorID != "" && process.env.iteratorID) {
           var iteratorID = `iteratorID="${process.env.iteratorID}"`
           var iterator = 'iterator="Continue"'
         } else {
