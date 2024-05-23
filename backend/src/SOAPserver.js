@@ -52,12 +52,12 @@ const service = {
       
           // Result contiene el objeto JavaScript convertido desde el XML
           console.log('Datos XML convertidos a objeto JavaScript:', result);
-	  //console.log(result.QBXML.QBXMLMsgsRs[0].AccountQueryRs)
+	        console.log(result.QBXML.QBXMLMsgsRs[0].CustomerQueryRs)
 	
 
 	        if (result.QBXML.QBXMLMsgsRs[0].CustomerQueryRs[0].$.statusMessage == 'Status OK') {
             result.QBXML.QBXMLMsgsRs[0].CustomerQueryRs[0].CustomerRet.forEach(element => {
-              console.log(element)
+              //console.log(element)
               /**
                * {
                     ListID: [ '800013C8-1645199437' ],
