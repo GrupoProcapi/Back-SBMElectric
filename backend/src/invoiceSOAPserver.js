@@ -69,6 +69,9 @@ const service = {
                     <CustomerRef>
                       <FullName>${fullName}</FullName>
                     </CustomerRef>
+                    <ClassRef>
+                      <FullName >MARINA</FullName>
+                    </ClassRef>
                     <TemplateRef>
                       <ListID>8000001A-1559700385</ListID>
                       <FullName>SHELTER BAY INVOICE2019</FullName>
