@@ -54,7 +54,7 @@ const service = {
               <NameFilter>
                 <!-- MatchCriterion may have one of the following values: StartsWith, Contains, EndsWith -->
                 <MatchCriterion>Contains</MatchCriterion>
-                <Name>a</Name>
+                <Name></Name>
               </NameFilter>
               <IncludeRetElement>ListID</IncludeRetElement>
                  <IncludeRetElement>Name</IncludeRetElement>
