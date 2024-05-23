@@ -32,6 +32,8 @@ const service = {
       sendRequestXML: (args, callback) => {
         console.log("Argumentos que envia el QBWC")
         console.log(args)
+        //iteratorRemainingCount: '5323',
+      //iteratorID: '{25dde6c2-4e4f-4b83-9709-55f98f576c12}'
         console.log('sendRequestXML called');
         const requestXML = `<?xml version="1.0" encoding="utf-8"?>
         <?qbxml version="7.0"?>
