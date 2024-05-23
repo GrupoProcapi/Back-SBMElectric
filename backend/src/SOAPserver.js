@@ -103,39 +103,39 @@ const service = {
 
                   XML
                   '<CustomerRet>\n' +
-    '<ListID>800013C8-1645199437</ListID>\n' +
-    '<TimeCreated>2022-02-18T10:50:37-05:00</TimeCreated>\n' +
-    '<TimeModified>2022-09-27T14:30:24-05:00</TimeModified>\n' +
-    '<EditSequence>1664307024</EditSequence>\n' +
-    '<Name>ZULLU</Name>\n' +
-    '<FullName>ZULLU</FullName>\n' +
-    '<IsActive>true</IsActive>\n' +
-    '<Sublevel>0</Sublevel>\n' +
-    '<CompanyName>ZULLU, Capitole Finance Tofinso</CompanyName>\n' +
-    '<BillAddress>\n' +
-    '<Addr1>ZULLU, Capitole Finance- Tofinso</Addr1>\n' +
-    '<State>Capitole</State>\n' +
-    '<Note>39 BD mondou 34510 florensac</Note>\n' +
-    '</BillAddress>\n' +
-    '<BillAddressBlock>\n' +
-    '<Addr1>ZULLU, Capitole Finance- Tofinso</Addr1>\n' +
-    '<Addr2>39 BD mondou 34510 florensac</Addr2>\n' +
-    '</BillAddressBlock>\n' +
-    '<Phone>+33606850292</Phone>\n' +
-    '<Contact>_</Contact>\n' +
-    '<AltContact>_</AltContact>\n' +
-    '<Balance>0.00</Balance>\n' +
-    '<TotalBalance>0.00</TotalBalance>\n' +
-    '<SalesTaxCodeRef>\n' +
-    '<ListID>80000003-1663700909</ListID>\n' +
-    '<FullName>7%</FullName>\n' +
-    '</SalesTaxCodeRef>\n' +
-    '<ItemSalesTaxRef>\n' +
-    '<ListID>80002244-1664293716</ListID>\n' +
-    '<FullName>7%</FullName>\n' +
-    '</ItemSalesTaxRef>\n' +
-    '<JobStatus>None</JobStatus>\n' +
-    '</CustomerRet>\n' +
+                  '<ListID>800013C8-1645199437</ListID>\n' +
+                  '<TimeCreated>2022-02-18T10:50:37-05:00</TimeCreated>\n' +
+                  '<TimeModified>2022-09-27T14:30:24-05:00</TimeModified>\n' +
+                  '<EditSequence>1664307024</EditSequence>\n' +
+                  '<Name>ZULLU</Name>\n' +
+                  '<FullName>ZULLU</FullName>\n' +
+                  '<IsActive>true</IsActive>\n' +
+                  '<Sublevel>0</Sublevel>\n' +
+                  '<CompanyName>ZULLU, Capitole Finance Tofinso</CompanyName>\n' +
+                  '<BillAddress>\n' +
+                  '<Addr1>ZULLU, Capitole Finance- Tofinso</Addr1>\n' +
+                  '<State>Capitole</State>\n' +
+                  '<Note>39 BD mondou 34510 florensac</Note>\n' +
+                  '</BillAddress>\n' +
+                  '<BillAddressBlock>\n' +
+                  '<Addr1>ZULLU, Capitole Finance- Tofinso</Addr1>\n' +
+                  '<Addr2>39 BD mondou 34510 florensac</Addr2>\n' +
+                  '</BillAddressBlock>\n' +
+                  '<Phone>+33606850292</Phone>\n' +
+                  '<Contact>_</Contact>\n' +
+                  '<AltContact>_</AltContact>\n' +
+                  '<Balance>0.00</Balance>\n' +
+                  '<TotalBalance>0.00</TotalBalance>\n' +
+                  '<SalesTaxCodeRef>\n' +
+                  '<ListID>80000003-1663700909</ListID>\n' +
+                  '<FullName>7%</FullName>\n' +
+                  '</SalesTaxCodeRef>\n' +
+                  '<ItemSalesTaxRef>\n' +
+                  '<ListID>80002244-1664293716</ListID>\n' +
+                  '<FullName>7%</FullName>\n' +
+                  '</ItemSalesTaxRef>\n' +
+                  '<JobStatus>None</JobStatus>\n' +
+                  '</CustomerRet>\n' +
                */
               
                   try {
@@ -163,13 +163,12 @@ const service = {
                     console.log({ message: err.message });
                   }
             });
+            if (result.QBXML.QBXMLMsgsRs[0].CustomerQueryRs[0].$.iteratorRemainingCount == '0') 
+              callback(null, { receiveResponseXMLResult: 100 });
+            else
+              callback(null, { receiveResponseXMLResult: 50 });
           }
         });
-
-        if (result.QBXML.QBXMLMsgsRs[0].CustomerQueryRs[0].$.iteratorRemainingCount == '0') 
-          callback(null, { receiveResponseXMLResult: 100 });
-        else
-          callback(null, { receiveResponseXMLResult: 50 });
       },
       connectionError: (args, callback) => {
         console.log('connectionError called');
