@@ -163,10 +163,12 @@ const service = {
                     console.log({ message: err.message });
                   }
             });
+            console.log("Resultado de iteratorRemainingCount")
+            console.log(result.QBXML.QBXMLMsgsRs[0].CustomerQueryRs[0].$.iteratorRemainingCount)
             if (result.QBXML.QBXMLMsgsRs[0].CustomerQueryRs[0].$.iteratorRemainingCount == '0') 
               callback(null, { receiveResponseXMLResult: 100 });
             else
-              callback(null, { receiveResponseXMLResult: 50 });
+              callback(null, { receiveResponseXMLResult: 1 });
           }
         });
       },
