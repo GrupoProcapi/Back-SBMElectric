@@ -293,7 +293,7 @@ app.post('/api/measurements', validateCreateMeasurements, async (req, res, next)
     const newMeasurer = req.body;
 
     
-    database.raw(`SELECT * FROM measurements WHERE measurer_id=${measurerId} ORDER BY id desc`)
+    database.raw(`SELECT * FROM measurements WHERE measurer_id=${newMeasurer.measurer_id} ORDER BY id desc`)
     .then(([rows]) => rows[0])
     .then((row) => {
       //No existe medida anterior
