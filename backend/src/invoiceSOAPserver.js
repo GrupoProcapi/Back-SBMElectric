@@ -34,7 +34,7 @@ const service = {
         
         //Sacar una medida pendiente a facturar
         try {
-          database.raw(`SELECT * FROM measurements WHERE status = "PENDIENTE" LIMIT 1`)
+          database.raw(`SELECT * FROM measurements WHERE status = "PROCESANDO" LIMIT 1`)
           .then(([rows, columns]) => rows[0])
           .then((rows) => {
             //No hay solicitudes pendientes
@@ -125,7 +125,7 @@ const service = {
               .then(([rows]) => rows[0])
               .then((row) => {
                 //Actualizado decide si continuar o no
-                database.raw('SELECT * FROM measurements WHERE status = "PENDIENTE" LIMIT 1')
+                database.raw('SELECT * FROM measurements WHERE status = "PROCESANDO" LIMIT 1')
                 .then(([rows]) => rows[0])
                 .then((row) => row ?  1 : 100)
                 .then((response) => {
