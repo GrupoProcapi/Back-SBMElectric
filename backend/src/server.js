@@ -449,12 +449,11 @@ app.get('/api/customers/:id', async (req, res, next) => {
 app.put('/api/customers', async (req, res, next) => {
   try {
     const customer = req.body;
-    database.raw(`UPDATE sbmqb_customers SET sbmqb_service = ${customer.sbmqb_service} where sbmqb_id = ${customer.sbmqb_id}`)
+    database.raw(`UPDATE sbmqb_customers SET sbmqb_service = "${customer.sbmqb_service}" where sbmqb_id = "${customer.sbmqb_id}"`)
     .then(([rows, columns]) => rows)
-    .then((row) => res.json({ message: row }))
+    .then((row) => res.json({ message: "Se actualizo el servicio del cliente a: "+customer.sbmqb_service }))
     .catch(next);
-    console.log(req.body)
-    res.json({ message: "Se actualizo el servicio del cliente a: "+customer.sbmqb_service })
+    
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
