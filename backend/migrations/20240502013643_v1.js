@@ -1,6 +1,6 @@
 exports.up = function(knex) {
     return knex.schema
-    .createTable('users', function (table) {
+    /*.createTable('users', function (table) {
       table.increments('id');
       table.string('username', 75).notNullable();
       table.string('password', 512).notNullable();
@@ -11,16 +11,16 @@ exports.up = function(knex) {
       table.string('pedestal', 100).notNullable();
       table.string('pedestal_id', 100).notNullable();
       table.string('measurer_code', 255).notNullable();
-    })
+    })*/
     .createTable('measurements', function (table) {
       table.increments('id');
-      table.integer('user_id', 100).notNullable();
+      table.integer('user_id', 100);
       table.integer('measurer_id', 100).notNullable();
-      table.integer('sbmqb_customer_id').notNullable();
+      table.integer('sbmqb_customer_id');
       table.string('sbmqb_customer_name', 500).notNullable();
-      table.string('sbmqb_service', 200).notNullable();
+      table.string('sbmqb_service', 200);
       table.string('description', 200).notNullable();
-      table.decimal('last_measure_value').notNullable();
+      table.decimal('last_measure_value');
       table.timestamp('last_measure_date', { precision: 6 });
       table.decimal('current_measure_value').notNullable();
       table.timestamp('current_measure_date', { precision: 6 }).defaultTo(knex.fn.now(6));
@@ -32,7 +32,7 @@ exports.up = function(knex) {
 
 exports.down = function(knex) {
     return knex.schema
-    .dropTable('users')
+    //.dropTable('users')
     .dropTable('measurements')
-    .dropTable('measurers');
+    //.dropTable('measurers');
 };

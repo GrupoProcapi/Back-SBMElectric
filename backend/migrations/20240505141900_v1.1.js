@@ -1,4 +1,4 @@
-exports.up = function(knex) {
+/*exports.up = function(knex) {
     return knex.schema
     .createTable('sbmqb_customers', function (table) {
       table.string('sbmqb_id');
@@ -29,7 +29,7 @@ exports.up = function(knex) {
 
 exports.down = function(knex) {
     return knex.schema
-    .dropTable('sbmqb_customers')
-    .dropTable('sbmqb_services')
-    .dropTable('sbmqb_customer_services');
-};
+    //.dropTable('sbmqb_customers')
+    //.dropTable('sbmqb_services')
+    //.dropTable('sbmqb_customer_services');
+};*/
