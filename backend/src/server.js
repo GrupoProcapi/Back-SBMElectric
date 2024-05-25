@@ -290,19 +290,9 @@ app.post('/api/measurements', validateCreateMeasurements, async (req, res, next)
       return res.status(400).json({ errors: errors.array() });
     }
   try {
-    var obj = req.body;
+    const newMeasurer = req.body;
 
-    for (const key in obj) {
-      if (obj[key] === undefined) {
-          obj[key] = '';
-      } else if (typeof obj[key] === 'object' && obj[key] !== null) {
-          replaceUndefinedWithEmptyString(obj[key]); // Llama recursivamente para objetos anidados
-      }
-    }
-
-    const newMeasurer = obj
-
-    database.raw(`INSERT INTO measurements (id, user_id, measurer_id, sbmqb_customer_id, sbmqb_customer_name, sbmqb_service, description, last_measure_value, last_measure_date, current_measure_value, current_measure_date,status) VALUES(NULL, ${newMeasurer.user_id}, ${newMeasurer.measurer_id}, ${newMeasurer.sbmqb_customer_id}, "${newMeasurer.sbmqb_customer_name}", "${newMeasurer.sbmqb_service}", "${newMeasurer.description}", ${newMeasurer.last_measure_value}, "${newMeasurer.last_measure_date}", ${newMeasurer.current_measure_value}, "${newMeasurer.current_measure_date}", "${newMeasurer.status}")`)
+    database.raw(`INSERT INTO measurements (measurer_id, sbmqb_customer_name, description, current_measure_value, current_measure_date, status) VALUES(${newMeasurer.measurer_id}, "${newMeasurer.sbmqb_customer_name}", "${newMeasurer.description}", ${newMeasurer.current_measure_value}, "${newMeasurer.current_measure_date}", "${newMeasurer.status}")`)
     .then(([rows]) => rows[0])
     .then((row) => res.status(201).json({message : "Measurement Created"}))
     .catch(next);
