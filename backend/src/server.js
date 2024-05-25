@@ -306,7 +306,14 @@ app.post('/api/measurements', validateCreateMeasurements, async (req, res, next)
         return
       }
       // manejar la medida anterior para asignar lastmeasure
-      database.raw(`INSERT INTO measurements ( measurer_id, sbmqb_customer_name, description, last_measure_value, last_measure_date, current_measure_value, current_measure_date, status) VALUES( ${newMeasurer.measurer_id}, "${newMeasurer.sbmqb_customer_name}", "${newMeasurer.description}", ${row.last_measure_value}, "${row.last_measure_date}", ${newMeasurer.current_measure_value}, "${newMeasurer.current_measure_date}", "${newMeasurer.status}")`)
+
+      const dateStr = row.last_measure_date;
+      const date = new Date(dateStr);
+      const formattedDate = date.toISOString().slice(0, 19).replace('T', ' ');
+      //console.log(formattedDate);  // '2024-05-25 18:27:09'
+
+
+      database.raw(`INSERT INTO measurements ( measurer_id, sbmqb_customer_name, description, last_measure_value, last_measure_date, current_measure_value, current_measure_date, status) VALUES( ${newMeasurer.measurer_id}, "${newMeasurer.sbmqb_customer_name}", "${newMeasurer.description}", ${row.last_measure_value}, "${formattedDate}", ${newMeasurer.current_measure_value}, "${newMeasurer.current_measure_date}", "${newMeasurer.status}")`)
       .then(([lineas]) => lineas[0])
       .then((lin) => res.status(201).json({message : "Measurement Created"}))
       .catch(next);
