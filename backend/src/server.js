@@ -313,7 +313,7 @@ app.post('/api/measurements', validateCreateMeasurements, async (req, res, next)
       //console.log(formattedDate);  // '2024-05-25 18:27:09'
 
 
-      database.raw(`INSERT INTO measurements ( measurer_id, sbmqb_customer_name, description, last_measure_value, last_measure_date, current_measure_value, current_measure_date, status) VALUES( ${newMeasurer.measurer_id}, "${newMeasurer.sbmqb_customer_name}", "${newMeasurer.description}", ${row.last_measure_value}, "${formattedDate}", ${newMeasurer.current_measure_value}, "${newMeasurer.current_measure_date}", "${newMeasurer.status}")`)
+      database.raw(`INSERT INTO measurements ( measurer_id, sbmqb_customer_name, description, last_measure_value, last_measure_date, current_measure_value, current_measure_date, status) VALUES( ${newMeasurer.measurer_id}, "${newMeasurer.sbmqb_customer_name}", "${newMeasurer.description}", ${row.current_measure_value}, "${formattedDate}", ${newMeasurer.current_measure_value}, "${newMeasurer.current_measure_date}", "${newMeasurer.status}")`)
       .then(([lineas]) => lineas[0])
       .then((lin) => res.status(201).json({message : "Measurement Created"}))
       .catch(next);
@@ -445,16 +445,16 @@ app.get('/api/customers/:id', async (req, res, next) => {
   }
 });
 
-// Post Customers
-app.post('/api/customers', async (req, res, next) => {
+// Put Customers
+app.put('/api/customers', async (req, res, next) => {
   try {
-    /*
-    database.raw('SELECT * FROM sbmqb_customers')
+    const customer = req.body;
+    database.raw(`UPDATE sbmqb_customers SET sbmqb_service = ${customer.sbmqb_service} where sbmqb_id = ${customer.sbmqb_id}`)
     .then(([rows, columns]) => rows)
     .then((row) => res.json({ message: row }))
-    .catch(next);*/
+    .catch(next);
     console.log(req.body)
-    res.json({ message: "Llego satisfactoriamente." })
+    res.json({ message: "Se actualizo el servicio del cliente a: "+customer.sbmqb_service })
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
