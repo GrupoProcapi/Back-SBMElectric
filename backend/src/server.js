@@ -293,9 +293,24 @@ app.post('/api/measurements', validateCreateMeasurements, async (req, res, next)
     const newMeasurer = req.body;
 
     
-    database.raw(`INSERT INTO measurements ( measurer_id, sbmqb_customer_name, description, current_measure_value, current_measure_date, status) VALUES( ${newMeasurer.measurer_id}, "${newMeasurer.sbmqb_customer_name}", "${newMeasurer.description}", ${newMeasurer.current_measure_value}, "${newMeasurer.current_measure_date}", "${newMeasurer.status}")`)
+    database.raw(`SELECT * FROM measurements WHERE measurer_id=${measurerId} ORDER BY id desc`)
     .then(([rows]) => rows[0])
-    .then((row) => res.status(201).json({message : "Measurement Created"}))
+    .then((row) => {
+      //No existe medida anterior
+      if (!row) {
+        //registrarla como nueva medida.
+        database.raw(`INSERT INTO measurements ( measurer_id, sbmqb_customer_name, description, current_measure_value, current_measure_date, status) VALUES( ${newMeasurer.measurer_id}, "${newMeasurer.sbmqb_customer_name}", "${newMeasurer.description}", ${newMeasurer.current_measure_value}, "${newMeasurer.current_measure_date}", "${newMeasurer.status}")`)
+        .then(([rows]) => rows[0])
+        .then((row) => res.status(201).json({message : "Measurement Created"}))
+        .catch(next);
+        return
+      }
+      // manejar la medida anterior para asignar lastmeasure
+      database.raw(`INSERT INTO measurements ( measurer_id, sbmqb_customer_name, description, last_measure_value, last_measure_date, current_measure_value, current_measure_date, status) VALUES( ${newMeasurer.measurer_id}, "${newMeasurer.sbmqb_customer_name}", "${newMeasurer.description}", ${row.last_measure_value}, "${row.last_measure_date}", ${newMeasurer.current_measure_value}, "${newMeasurer.current_measure_date}", "${newMeasurer.status}")`)
+      .then(([lineas]) => lineas[0])
+      .then((lin) => res.status(201).json({message : "Measurement Created"}))
+      .catch(next);
+    })
     .catch(next);
   } catch (err) {
     res.status(400).json({ message: err.message });
@@ -358,10 +373,12 @@ app.put('/api/measurements/:id', validateUpdateMeasurements, async (req, res, ne
   try {
     const measurementId = req.params.id;
     const measurement = req.body;
+    //database.raw(`UPDATE measurements SET user_id=${measurement.user_id}, measurer_id=${measurement.measurer_id}, sbmqb_customer_name="${measurement.sbmqb_customer_name}", sbmqb_customer_id="${measurement.sbmqb_customer_id}", sbmqb_service="${measurement.sbmqb_service}", description="${measurement.description}",  last_measure_value=${measurement.last_measure_value}, last_measure_date="${measurement.last_measure_date}", current_measure_value=${measurement.current_measure_value}, current_measure_date="${measurement.current_measure_date}", status="${measurement.status}" WHERE id = ${measurementId}`)
+    //database.raw(`UPDATE measurements SET sbmqb_customer_name="${measurement.sbmqb_customer_name}", sbmqb_service="${measurement.sbmqb_service}", description="${measurement.description}", current_measure_value=${measurement.current_measure_value}, current_measure_date="${measurement.current_measure_date}", status="${measurement.status}" WHERE id = ${measurementId}`)
     database.raw(`SELECT * FROM measurements WHERE id = ${measurementId}`)
     .then(([rows]) => rows[0])
     .then((row) => row ? 
-        database.raw(`UPDATE measurements SET user_id=${measurement.user_id}, measurer_id=${measurement.measurer_id}, sbmqb_customer_name="${measurement.sbmqb_customer_name}", sbmqb_customer_id="${measurement.sbmqb_customer_id}", sbmqb_service="${measurement.sbmqb_service}", description="${measurement.description}",  last_measure_value=${measurement.last_measure_value}, last_measure_date="${measurement.last_measure_date}", current_measure_value=${measurement.current_measure_value}, current_measure_date="${measurement.current_measure_date}", status="${measurement.status}" WHERE id = ${measurementId}`)
+        database.raw(`UPDATE measurements SET status="${measurement.status}" WHERE id = ${measurementId}`)
         .then(([rows]) => rows[0])
         .then((row) => res.json({ message: 'Measurement updated.' }))
     : res.status(404).json({ message: 'Measurement not found' }))
