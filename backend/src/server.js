@@ -299,7 +299,8 @@ app.post('/api/measurements', validateCreateMeasurements, async (req, res, next)
       //No existe medida anterior
       if (!row) {
         //registrarla como nueva medida.
-        database.raw(`INSERT INTO measurements ( measurer_id, sbmqb_customer_name, description, current_measure_value, current_measure_date, status) VALUES( ${newMeasurer.measurer_id}, "${newMeasurer.sbmqb_customer_name}", "${newMeasurer.description}", ${newMeasurer.current_measure_value}, "${newMeasurer.current_measure_date}", "${newMeasurer.status}")`)
+        database.raw(`INSERT INTO measurements ( measurer_id, sbmqb_customer_name, description, 
+          current_measure_value, current_measure_date, status) VALUES( ${newMeasurer.measurer_id}, "${newMeasurer.sbmqb_customer_name}", "${newMeasurer.description}", ${newMeasurer.current_measure_value}, "${newMeasurer.current_measure_date}", "${newMeasurer.status}")`)
         .then(([rows]) => rows[0])
         .then((row) => res.status(201).json({message : "Measurement Created"}))
         .catch(next);
@@ -312,8 +313,7 @@ app.post('/api/measurements', validateCreateMeasurements, async (req, res, next)
       const formattedDate = date.toISOString().slice(0, 19).replace('T', ' ');
       //console.log(formattedDate);  // '2024-05-25 18:27:09'
 
-
-      database.raw(`INSERT INTO measurements ( measurer_id, sbmqb_customer_name, description, last_measure_value, last_measure_date, current_measure_value, current_measure_date, status) VALUES( ${newMeasurer.measurer_id}, "${newMeasurer.sbmqb_customer_name}", "${newMeasurer.description}", ${row.current_measure_value}, "${formattedDate}", ${newMeasurer.current_measure_value}, "${newMeasurer.current_measure_date}", "${newMeasurer.status}")`)
+      database.raw(`INSERT INTO measurements ( measurer_id, sbmqb_customer_name, description, last_measure_value, last_measure_date, current_measure_value, current_measure_date, sbmqb_service, status) VALUES( ${newMeasurer.measurer_id}, "${newMeasurer.sbmqb_customer_name}", "${newMeasurer.description}", ${row.current_measure_value}, "${formattedDate}", ${newMeasurer.current_measure_value}, "${newMeasurer.current_measure_date}","${newMeasurer.sbmqb_service || ''}", "${newMeasurer.status}")`)
       .then(([lineas]) => lineas[0])
       .then((lin) => res.status(201).json({message : "Measurement Created"}))
       .catch(next);
