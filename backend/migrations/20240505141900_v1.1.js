@@ -9,7 +9,7 @@ exports.up = function(knex) {
       table.enu('class', ['MARINA', 'EDIFICIO']);
       table.enu('status', ['ACTIVE', 'SUSPENDED', 'TERMINATED']);
     })
-    /*.createTable('sbmqb_services', function (table) {
+    .createTable('sbmqb_services', function (table) {
       table.string('sbmqb_id');
       table.string('service', 200).notNullable();
       table.string('description', 400).notNullable();
@@ -25,12 +25,12 @@ exports.up = function(knex) {
       table.enu('status', ['ACTIVE', 'SUSPENDED', 'TERMINATED']);
       //table.foreign('sbmqb_customer_id').references('sbmqb_customers.sbmqb_id').deferrable('deferred');
       //table.foreign('sbmqb_service_id').references('sbmqb_services.sbmqb_id').deferrable('deferred');
-    });*/
+    });
 };
 
 exports.down = function(knex) {
     return knex.schema
-    .dropTable('sbmqb_customers')
+    //.dropTable('sbmqb_customers')
     //.dropTable('sbmqb_services')
     //.dropTable('sbmqb_customer_services');
 };

@@ -1,6 +1,6 @@
 exports.up = function(knex) {
     return knex.schema
-    /*.createTable('users', function (table) {
+    .createTable('users', function (table) {
       table.increments('id');
       table.string('username', 75).notNullable();
       table.string('password', 512).notNullable();
@@ -11,7 +11,7 @@ exports.up = function(knex) {
       table.string('pedestal', 100).notNullable();
       table.string('pedestal_id', 100).notNullable();
       table.string('measurer_code', 255).notNullable();
-    })*/
+    })
     .createTable('measurements', function (table) {
       table.increments('id');
       table.integer('user_id', 100);
