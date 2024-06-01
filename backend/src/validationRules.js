@@ -1,4 +1,4 @@
-const { body, param } = require('express-validator');
+const { body, param, query } = require('express-validator');
 
 // Login Validation
 const validateLogin = [
@@ -34,6 +34,11 @@ const validateCreateUser = [
 
   const validateId = [
     param('id').notEmpty().withMessage('ID path parameter is required').isInt().withMessage('ID path parameter must be a number')
+  ];
+
+  const validateDate = [
+    query('from').isString().withMessage('from path parameter must be a string').notEmpty().withMessage('from query parameter is required'),
+    query('to').isString().withMessage('to path parameter must be a string').notEmpty().withMessage('to query parameter is required')
   ];
 
 
@@ -82,6 +87,7 @@ const validateUpdateMeasurements = [
     validateCreateUser,
     validateUpdateUser,
     validateId,
+    validateDate,
     validateLogin,
     validateCreateMeasurer,
     validateUpdateMeasurer,

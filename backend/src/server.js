@@ -17,11 +17,15 @@ const bodyParser = require('body-parser');
 const database = require("./database");
 const apiKeyValidator = require("./apiKeyValidator");
 const { validationResult } = require('express-validator');
-const { validateCreateUser, validateUpdateUser, validateId, validateLogin, validateCreateMeasurer, validateUpdateMeasurer, validateCreateMeasurements, validateUpdateMeasurements } = require('./validationRules');
+const { validateCreateUser, validateUpdateUser, validateId, validateDate, validateLogin, validateCreateMeasurer, validateUpdateMeasurer, validateCreateMeasurements, validateUpdateMeasurements } = require('./validationRules');
 // Api
 const app = express();
 app.use(bodyParser.json());
 app.use(morgan("common"));
+
+function isEmpty(str) {
+  return str === null || str === undefined || str.trim() === '';
+}
 
 // Middleware para permitir CORS desde múltiples dominios
 app.use((req, res, next) => {
@@ -328,8 +332,33 @@ app.post('/api/measurements', validateCreateMeasurements, async (req, res, next)
 
 // Get all Measurements
 app.get('/api/measurements', async (req, res, next) => {
+  const errors = validationResult(req);
+  if(!errors.isEmpty())
+    {
+      return res.status(400).json({ errors: errors.array() });
+    }
   try {
-    database.raw('SELECT * FROM measurements')
+    var query = "";
+    const from = req.query.from;
+    const to = req.query.to;
+    const measurerId = req.query.measurer_id 
+    const customerName = req.query.customer_name
+    if(from != null && to != null)
+      {
+        isEmpty(query) ? query += " WHERE" : query += " AND"; 
+        query += ` DATE(last_measure_date) BETWEEN "${from}" and "${to}"`;
+      }
+    if(measurerId != null)
+      {
+        isEmpty(query) ? query += " WHERE" : query =+ " AND"; 
+        query += ` measurer_id = ${measurerId}`;
+      }
+    if(customerName != null)
+      {
+        isEmpty(query) ? query += " WHERE" : query += " AND"; 
+        query += ` customer_sbm_name = "${customerName}"`;
+      }
+    database.raw(`SELECT * FROM measurements ${query} ORDER BY id desc`)
     .then(([rows]) => res.json({ message: rows }))
     .catch(next);
   } catch (err) {
@@ -348,6 +377,42 @@ app.get('/api/measurers/:id/measurements', validateId, async (req, res, next) =>
     const measurerId = req.params.id;
     database.raw(`SELECT * FROM measurements WHERE measurer_id=${measurerId} ORDER BY id desc`)
     .then(([rows]) => res.json({ message: rows }))
+    .catch(next);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Get total consumption for all Measurements
+app.get('/api/measurements/total', validateDate, async (req, res, next) => {
+  const errors = validationResult(req);
+  if(!errors.isEmpty())
+    {
+      return res.status(400).json({ errors: errors.array() });
+    }
+  try {
+    var query = "";
+    const from = req.query.from;
+    const to = req.query.to;
+    const measurerId = req.query.measurer_id 
+    const customerId = req.query.customer_id
+
+    if(from != null && to != null)
+      {
+        query += `WHERE DATE(last_measure_date) BETWEEN "${from}" and "${to}"`;
+      }
+    if(measurerId != null)
+      {
+        query += ` AND measurer_id = ${measurerId}`;
+      }
+    if(customerId != null)
+      {
+        query += ` AND sbmqb_customer_id = ${customerId}`;
+      }
+    database.raw(`SELECT * FROM measurements ${query} ORDER BY id desc`)
+    .then(([rows]) => { 
+      res.json({ message: rows })
+    })
     .catch(next);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -418,9 +483,6 @@ app.delete('/api/measurements/:id', validateId, async (req, res, next) => {
     res.status(400).json({ message: err.message });
   }
 });
-
-
-
 
 // Get all Customers
 app.get('/api/customers', async (req, res, next) => {
