@@ -356,7 +356,7 @@ app.get('/api/measurements', async (req, res, next) => {
     if(customerName != null)
       {
         isEmpty(query) ? query += " WHERE" : query += " AND"; 
-        query += ` customer_sbm_name = "${customerName}"`;
+        query += ` sbmqb_customer_name = "${customerName}"`;
       }
     database.raw(`SELECT * FROM measurements ${query} ORDER BY id desc`)
     .then(([rows]) => res.json({ message: rows }))
