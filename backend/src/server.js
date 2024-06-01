@@ -27,6 +27,44 @@ function isEmpty(str) {
   return str === null || str === undefined || str.trim() === '';
 }
 
+const groupMeasurementsByClientName = (measurements) => {
+  return measurements.reduce((acc, measurement) => {
+      const { sbmqb_customer_name,  measurer_id } = measurement;
+      const key = `${sbmqb_customer_name}-${measurer_id}`
+      if (!acc[key]) {
+          acc[key] = [];
+      }
+      acc[key].push(measurement);
+      return acc;
+  }, {});
+};
+
+const calculateTotalMeasurements = (groupedMeasurements) => {
+  const totalMeasurements = [];
+
+  for (const key in groupedMeasurements) {
+      if (groupedMeasurements.hasOwnProperty(key)) {
+          const measurements = groupedMeasurements[key];
+          measurements.sort((a, b) => a.id - b.id);
+
+          const firstMeasurement = measurements[0].current_measure_value;
+          const lastMeasurement = measurements[measurements.length - 1].current_measure_value;
+
+          const measurementIds = measurements.map(measurement => measurement.id);
+
+          const [sbmqb_customer_name, measurer_id] = key.split('-');
+
+          totalMeasurements.push({
+              sbmqb_customer_name: sbmqb_customer_name,
+              measurer_id: parseInt(measurer_id),
+              total_difference: lastMeasurement - firstMeasurement,
+              ids: measurementIds
+          });
+      }
+  }
+
+  return totalMeasurements;
+};
 // Middleware para permitir CORS desde múltiples dominios
 app.use((req, res, next) => {
   const allowedOrigins = ['http://localhost:5173','*'];
@@ -395,7 +433,7 @@ app.get('/api/measurements/total', validateDate, async (req, res, next) => {
     const from = req.query.from;
     const to = req.query.to;
     const measurerId = req.query.measurer_id 
-    const customerId = req.query.customer_id
+    const customerName = req.query.customer_name
 
     if(from != null && to != null)
       {
@@ -405,13 +443,15 @@ app.get('/api/measurements/total', validateDate, async (req, res, next) => {
       {
         query += ` AND measurer_id = ${measurerId}`;
       }
-    if(customerId != null)
+    if(customerName != null)
       {
-        query += ` AND sbmqb_customer_id = ${customerId}`;
+        query += ` AND sbmqb_customer_name = "${customerName}"`;
       }
     database.raw(`SELECT * FROM measurements ${query} ORDER BY id desc`)
     .then(([rows]) => { 
-      res.json({ message: rows })
+      const groupedMeasurements = groupMeasurementsByClientName(rows);
+      const totalMeasurements = calculateTotalMeasurements(groupedMeasurements);
+      res.json({ message: totalMeasurements })
     })
     .catch(next);
   } catch (err) {
