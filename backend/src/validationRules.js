@@ -57,6 +57,21 @@ const validateUpdateMeasurer = [
 ];
 
 
+// Invoice Validation
+const validateCreateInvoice = [
+  body('sbmqb_customer_name').notEmpty().withMessage('sbmqb_customer_name parameter is required').isString().withMessage('sbmqb_customer_name parameter must be a string'),
+  body('sbmqb_service').notEmpty().withMessage('sbmqb_service parameter is required').isString().withMessage('sbmqb_service parameter must be a string'),
+  body('measurer_code').notEmpty().withMessage('measurer_code parameter is required').isString().withMessage('measurer_code parameter must be a string'),
+  body('initial_measure_value').notEmpty().withMessage('initial_measure_value parameter is required').isDecimal().withMessage('initial_measure_value parameter must be a decimal'),
+  body('current_measure_value').notEmpty().withMessage('current_measure_value parameter is required').isDecimal().withMessage('current_measure_value parameter must be a decimal'),
+  body('total_measure_value').notEmpty().withMessage('total_measure_value parameter is required').isDecimal().withMessage('total_measure_value parameter must be a decimal'),
+  body('begin_date').notEmpty().withMessage('begin_date parameter is required').isString().withMessage('begin_date parameter must be a string on this format: \'1999-12-30 01:55:56.416\''),
+  body('end_date').notEmpty().withMessage('end_date parameter is required').isString().withMessage('end_date parameter must be a string on this format: \'1999-12-30 01:55:56.416\''),
+  body('status').notEmpty().withMessage('status parameter missing')
+  .isString().withMessage('status parameter must be a string')
+  .matches(/^(PENDIENTE|PROCESANDO|FACTURADO)$/).withMessage('status must be either \'PENDIENTE\', \'PROCESANDO\' or \'FACTURADO\''),
+  body('sbmqb_invoice_id').notEmpty().withMessage('sbmqb_invoice_id parameter is required').isString().withMessage('sbmqb_invoice_id parameter must be a string'),
+];
 // Measurement Validation
 const validateCreateMeasurements = [
     //body('user_id').notEmpty().withMessage('user_id parameter is required').isInt().withMessage('user_id parameter must be a number'),
@@ -83,6 +98,19 @@ const validateUpdateMeasurements = [
     .matches(/^(PENDIENTE|PROCESANDO|FACTURADO)$/).withMessage('status must be either \'PENDIENTE\', \'PROCESANDO\' or \'FACTURADO\'')
 ];
 
+
+const validateUpdateInvoice = [
+  param('id').notEmpty().withMessage('ID path parameter is required').isInt().withMessage('ID path parameter must be a number'),
+  //body('measurer_id').notEmpty().withMessage('measurer_id parameter is required').isInt().withMessage('measurer_id parameter must be a number'),
+  //body('sbmqb_customer_name').notEmpty().withMessage('sbmqb_customer_name parameter is required').isString().withMessage('sbmqb_customer_name parameter must be a string'),
+  //body('current_measure_value').notEmpty().withMessage('current_measure_value parameter is required').isDecimal().withMessage('current_measure_value parameter must be a decimal'),
+  //body('current_measure_date').notEmpty().withMessage('current_measure_date parameter is required').isString().withMessage('current_measure_date parameter must be a string on this format: \'1999-12-30 01:55:56.416\''),
+  body('status').notEmpty().withMessage('status parameter missing')
+  .isString().withMessage('status parameter must be a string')
+  .matches(/^(PENDIENTE|PROCESANDO|FACTURADO)$/).withMessage('status must be either \'PENDIENTE\', \'PROCESANDO\' or \'FACTURADO\'')
+];
+
+
   module.exports = {
     validateCreateUser,
     validateUpdateUser,
@@ -92,5 +120,7 @@ const validateUpdateMeasurements = [
     validateCreateMeasurer,
     validateUpdateMeasurer,
     validateCreateMeasurements,
-    validateUpdateMeasurements
+    validateUpdateMeasurements,
+    validateCreateInvoice,
+    validateUpdateInvoice
   }

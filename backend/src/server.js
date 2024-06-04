@@ -17,15 +17,15 @@ const bodyParser = require('body-parser');
 const database = require("./database");
 const apiKeyValidator = require("./apiKeyValidator");
 const { validationResult } = require('express-validator');
-const { validateCreateUser, validateUpdateUser, validateId, validateDate, validateLogin, validateCreateMeasurer, validateUpdateMeasurer, validateCreateMeasurements, validateUpdateMeasurements } = require('./validationRules');
+const { validateCreateUser, validateUpdateUser, validateId, validateDate, validateLogin, validateCreateMeasurer, validateUpdateMeasurer, validateUpdateInvoice, validateCreateMeasurements, validateUpdateMeasurements, validateCreateInvoice } = require('./validationRules');
 // Api
 const app = express();
 app.use(bodyParser.json());
 app.use(morgan("common"));
 
-function isEmpty(str) {
+const isEmpty = (str) => {
   return str === null || str === undefined || str.trim() === '';
-}
+};
 
 const groupMeasurementsByClientName = (measurements) => {
   return measurements.reduce((acc, measurement) => {
@@ -49,15 +49,19 @@ const calculateTotalMeasurements = (groupedMeasurements) => {
 
           const firstMeasurement = measurements[0].current_measure_value;
           const lastMeasurement = measurements[measurements.length - 1].current_measure_value;
-
           const measurementIds = measurements.map(measurement => measurement.id);
-
+          const sbmqb_service = measurements[0].sbmqb_service;
+          const measurer_code = measurements[0].measurer_code;
           const [sbmqb_customer_name, measurer_id] = key.split('-');
 
           totalMeasurements.push({
               sbmqb_customer_name: sbmqb_customer_name,
-              measurer_id: parseInt(measurer_id),
-              total_difference: lastMeasurement - firstMeasurement,
+              sbmqb_service: sbmqb_service,
+              measurer_id : measurer_id,
+              measurer_code: measurer_code,
+              initial_measure_value: firstMeasurement,
+              current_measure_value: lastMeasurement,
+              total_measure_value: lastMeasurement - firstMeasurement,
               ids: measurementIds
           });
       }
@@ -65,6 +69,7 @@ const calculateTotalMeasurements = (groupedMeasurements) => {
 
   return totalMeasurements;
 };
+
 // Middleware para permitir CORS desde múltiples dominios
 app.use((req, res, next) => {
   const allowedOrigins = ['http://localhost:5173','*'];
@@ -388,7 +393,7 @@ app.get('/api/measurements', async (req, res, next) => {
       }
     if(measurerId != null)
       {
-        isEmpty(query) ? query += " WHERE" : query =+ " AND"; 
+        isEmpty(query) ? query += " WHERE" : query += " AND"; 
         query += ` measurer_id = ${measurerId}`;
       }
     if(customerName != null)
@@ -432,22 +437,22 @@ app.get('/api/measurements/total', validateDate, async (req, res, next) => {
     var query = "";
     const from = req.query.from;
     const to = req.query.to;
-    const measurerId = req.query.measurer_id 
+    const measurerCode = req.query.measurer_code 
     const customerName = req.query.customer_name
 
     if(from != null && to != null)
       {
-        query += `WHERE DATE(last_measure_date) BETWEEN "${from}" and "${to}"`;
+        query += `WHERE x.status = "PENDIENTE" AND DATE(x.current_measure_date) BETWEEN "${from}" and "${to}"`;
       }
-    if(measurerId != null)
+    if(measurerCode != null)
       {
-        query += ` AND measurer_id = ${measurerId}`;
+        query += ` AND y.measurer_code = "${measurerCode}"`;
       }
     if(customerName != null)
       {
-        query += ` AND sbmqb_customer_name = "${customerName}"`;
+        query += ` AND x.sbmqb_customer_name = "${customerName}"`;
       }
-    database.raw(`SELECT * FROM measurements ${query} ORDER BY id desc`)
+    database.raw(`SELECT x.*, y.measurer_code FROM measurements x INNER JOIN measurers y ON x.measurer_id = y.id ${query} ORDER BY x.id desc`)
     .then(([rows]) => { 
       const groupedMeasurements = groupMeasurementsByClientName(rows);
       const totalMeasurements = calculateTotalMeasurements(groupedMeasurements);
@@ -518,6 +523,68 @@ app.delete('/api/measurements/:id', validateId, async (req, res, next) => {
         .then(([rows]) => rows[0])
         .then((row) => res.json({ message: 'Measurement deleted.' }))
     : res.status(404).json({ message: 'Measurements not found' }))
+    .catch(next);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// Post Bill
+app.post('/api/bill', validateCreateInvoice, async (req, res, next) => {
+  const errors = validationResult(req);
+  const newInvoice = req.body;
+  if(!errors.isEmpty())
+    {
+      return res.status(400).json({ errors: errors.array() });
+    }
+  try {
+    await database.transaction(async trx => {
+      const [insertedInvoice] = await trx('sbmqb_invoices')
+        .insert({
+          sbmqb_customer_name: newInvoice.sbmqb_customer_name,
+          sbmqb_service: newInvoice.sbmqb_service,
+          measurer_code: newInvoice.measurer_code,
+          initial_measure_value: newInvoice.initial_measure_value,
+          current_measure_value: newInvoice.current_measure_value,
+          total_measure_value: newInvoice.total_measure_value,
+          begin_date: newInvoice.begin_date,
+          end_date: newInvoice.end_date,
+          status: 'PENDIENTE',
+          sbmqb_invoice_id: newInvoice.sbmqb_invoice_id
+        })
+        .returning('*');
+
+      await trx('measurements')
+        .update({
+          status: 'PROCESANDO',
+        })
+        .whereIn('id', newInvoice.ids);
+
+      res.json({ message:  "Invoice Created, Id: " + insertedInvoice });
+    })
+    .catch(next);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// Update Invoice
+app.put('/api/invoices/:id', validateUpdateInvoice, async (req, res, next) => {
+  const errors = validationResult(req);
+  if(!errors.isEmpty())
+    {
+      return res.status(400).json({ errors: errors.array() });
+    }
+  try {
+    const invoiceId = req.params.id;
+    const invoice = req.body;
+    database.raw(`SELECT id FROM sbmqb_invoices WHERE id = ${invoiceId}`)
+    .then(([rows]) => rows[0])
+    .then((row) => row ? 
+        database.raw(`UPDATE sbmqb_invoices SET status="${invoice.status}" WHERE id = ${invoiceId}`)
+        .then(([rows]) => rows[0])
+        .then((row) => res.json({ message: 'Invoice updated.' }))
+    : res.status(404).json({ message: 'Invoice not found' }))
     .catch(next);
   } catch (err) {
     res.status(400).json({ message: err.message });
