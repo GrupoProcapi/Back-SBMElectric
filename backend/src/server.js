@@ -558,6 +558,7 @@ app.post('/api/bill', validateCreateInvoice, async (req, res, next) => {
       await trx('measurements')
         .update({
           status: 'PROCESANDO',
+          sbmqb_invoices_id: insertedInvoice
         })
         .whereIn('id', newInvoice.ids);
 
