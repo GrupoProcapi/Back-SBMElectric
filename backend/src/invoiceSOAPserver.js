@@ -34,7 +34,7 @@ const service = {
         
         //Sacar una medida pendiente a facturar
         try {
-          database.raw(`SELECT * FROM measurements WHERE status = "PROCESANDO" LIMIT 1`)
+          database.raw(`SELECT * FROM sbmqb_invoices WHERE status = "PENDIENTE" LIMIT 1`)
           .then(([rows, columns]) => rows[0])
           .then((rows) => {
             //No hay solicitudes pendientes
@@ -57,8 +57,38 @@ const service = {
             const day = String(today.getDate()).padStart(2, '0');
             var date=`${year}-${month}-${day}`;
             var fullName =  rows.sbmqb_customer_name 
-            var description = rows.description
-            var qty = rows.current_measure_value - rows.last_measure_value
+            // Utilizamos una expresión regular para capturar la parte deseada
+            const cadena = rows.sbmqb_service
+            const regex = /(\d+-)(.*)/;
+            const resultado = cadena.match(regex);
+
+            // El resultado deseado está en el segundo grupo de captura (índice 2)
+            const servicioExtraido = resultado ? resultado[2] : null;
+
+            // Crear un objeto Date a partir de la cadena de fecha
+            const dateBegin = new Date(rows.begin_date);
+            const dateEnd = new Date(rows.end_date);
+            
+            // Array de nombres de los meses
+            const monthNames = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+
+            // Obtener el nombre del mes en formato abreviado
+            const monthNameBegin = monthNames[dateBegin.getUTCMonth()];
+            const monthNameEnd = monthNames[dateEnd.getUTCMonth()];
+
+            // Obtener el día del mes
+            const dayBegin = dateBegin.getUTCDate();
+            const dayEnd = dateEnd.getUTCDate();
+
+            var description = `
+            ${servicioExtraido}
+            DOCK    ${rows.measurer_code}
+            INITIAL ${rows.initial_measure_value}
+            FINAL   ${rows.current_measure_value}
+            USED    ${rows.total_measure_value} KWTS
+            ${monthNameBegin} ${dayBegin} TO ${monthNameEnd} ${dayEnd}  YR
+            `
+            var qty = rows.total_measure_value
             var rate = rows.sbmqb_service
             const requestXML = `<?xml version="1.0" encoding="utf-8"?>
             <?qbxml version="7.0"?>
