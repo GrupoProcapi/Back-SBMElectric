@@ -81,12 +81,12 @@ const service = {
             const dayEnd = dateEnd.getUTCDate();
 
             var description = `
-            ${servicioExtraido}
-            DOCK    ${rows.measurer_code}
-            INITIAL ${rows.initial_measure_value}
-            FINAL   ${rows.current_measure_value}
-            USED    ${rows.total_measure_value} KWTS
-            ${monthNameBegin} ${dayBegin} TO ${monthNameEnd} ${dayEnd}  YR
+${servicioExtraido}
+DOCK    ${rows.measurer_code}
+INITIAL ${rows.initial_measure_value}
+FINAL   ${rows.current_measure_value}
+USED    ${rows.total_measure_value} KWTS
+${monthNameBegin} ${dayBegin} TO ${monthNameEnd} ${dayEnd}  YR
             `
             var qty = rows.total_measure_value
             var rate = rows.sbmqb_service
@@ -163,6 +163,8 @@ const service = {
                 })
               })
             } 
+            console.log(result.QBXML.QBXMLMsgsRs[0].InvoiceAddRs[0].InvoiceRet)
+            callback(null, { receiveResponseXMLResult: 100 })
           } catch (err) {
             res.status(500).json({ message: err.message });
           }
