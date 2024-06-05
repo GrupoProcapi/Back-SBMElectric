@@ -29,8 +29,8 @@ const isEmpty = (str) => {
 
 const groupMeasurementsByClientName = (measurements) => {
   return measurements.reduce((acc, measurement) => {
-      const { sbmqb_customer_name,  measurer_id } = measurement;
-      const key = `${sbmqb_customer_name}-itfjrbk-${measurer_id}`
+      const { sbmqb_customer_name,  measurer_id, status } = measurement;
+      const key = `${sbmqb_customer_name}-itfjrbk-${measurer_id}-itfjrbk-${status}`
       if (!acc[key]) {
           acc[key] = [];
       }
@@ -52,7 +52,7 @@ const calculateTotalMeasurements = (groupedMeasurements) => {
           const measurementIds = measurements.map(measurement => measurement.id);
           const sbmqb_service = measurements[0].sbmqb_service;
           const measurer_code = measurements[0].pedestal_id;
-          const [sbmqb_customer_name, measurer_id] = key.split('-itfjrbk-');
+          const [sbmqb_customer_name, measurer_id, status] = key.split('-itfjrbk-');
 
           totalMeasurements.push({
               sbmqb_customer_name: sbmqb_customer_name,
@@ -62,6 +62,7 @@ const calculateTotalMeasurements = (groupedMeasurements) => {
               initial_measure_value: firstMeasurement,
               current_measure_value: lastMeasurement,
               total_measure_value: lastMeasurement - firstMeasurement,
+              status:status,
               ids: measurementIds
           });
       }
@@ -442,7 +443,7 @@ app.get('/api/measurements/total', validateDate, async (req, res, next) => {
 
     if(from != null && to != null)
       {
-        query += `WHERE x.status = "PENDIENTE" AND DATE(x.current_measure_date) BETWEEN "${from}" and "${to}"`;
+        query += `WHERE DATE(x.current_measure_date) BETWEEN "${from}" and "${to}"`;
       }
     if(measurerCode != null)
       {
