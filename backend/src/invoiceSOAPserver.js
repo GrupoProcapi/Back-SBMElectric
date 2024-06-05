@@ -149,7 +149,7 @@ const service = {
           }
           
           try {
-            if (result.QBXML.QBXMLMsgsRs[0].InvoiceAddRs[0].$.statusMessage == 'Status OK') {
+            if (result.QBXML.QBXMLMsgsRs[0].InvoiceAddRs[0].$.statusMessage == 'Status OK' && false) {
               //Update registro
               database.raw(`UPDATE measurements SET status = "FACTURADO" WHERE id = ${result.QBXML.QBXMLMsgsRs[0].InvoiceAddRs[0].$.requestID}`)
               .then(([rows]) => rows[0])
