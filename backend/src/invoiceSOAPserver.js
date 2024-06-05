@@ -155,7 +155,7 @@ ${monthNameBegin} ${dayBegin} TO ${monthNameEnd} ${dayEnd}  YR
               .then(([rows]) => rows[0])
               .then((row) => {
 
-                database.raw(`UPDATE sbmqb_invoices SET status = "FACTURADO" WHERE sbmqb_invoice_id = ${result.QBXML.QBXMLMsgsRs[0].InvoiceAddRs[0].InvoiceRet.RefNumber[0]}`)
+                database.raw(`UPDATE sbmqb_invoices SET status = "FACTURADO" WHERE sbmqb_invoice_id = ${result.QBXML.QBXMLMsgsRs[0].InvoiceAddRs[0].InvoiceRet[0].RefNumber[0]}`)
                 .then((row) => {
                   //Actualizado decide si continuar o no
                 database.raw('SELECT * FROM sbmqb_invoices WHERE status = "PENDIENTE" LIMIT 1')
