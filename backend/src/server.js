@@ -30,7 +30,7 @@ const isEmpty = (str) => {
 const groupMeasurementsByClientName = (measurements) => {
   return measurements.reduce((acc, measurement) => {
       const { sbmqb_customer_name,  measurer_id } = measurement;
-      const key = `${sbmqb_customer_name}-${measurer_id}`
+      const key = `${sbmqb_customer_name}-itfjrbk-${measurer_id}`
       if (!acc[key]) {
           acc[key] = [];
       }
@@ -52,7 +52,7 @@ const calculateTotalMeasurements = (groupedMeasurements) => {
           const measurementIds = measurements.map(measurement => measurement.id);
           const sbmqb_service = measurements[0].sbmqb_service;
           const measurer_code = measurements[0].measurer_code;
-          const [sbmqb_customer_name, measurer_id] = key.split('-');
+          const [sbmqb_customer_name, measurer_id] = key.split('-itfjrbk-');
 
           totalMeasurements.push({
               sbmqb_customer_name: sbmqb_customer_name,
@@ -550,7 +550,7 @@ app.post('/api/bill', validateCreateInvoice, async (req, res, next) => {
           begin_date: newInvoice.begin_date,
           end_date: newInvoice.end_date,
           status: 'PENDIENTE',
-          sbmqb_invoice_id: newInvoice.sbmqb_invoice_id
+          sbmqb_invoice_id: "" 
         })
         .returning('*');
 
