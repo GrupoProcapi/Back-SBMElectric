@@ -51,7 +51,7 @@ const calculateTotalMeasurements = (groupedMeasurements) => {
           const lastMeasurement = measurements[measurements.length - 1].current_measure_value;
           const measurementIds = measurements.map(measurement => measurement.id);
           const sbmqb_service = measurements[0].sbmqb_service;
-          const measurer_code = measurements[0].measurer_code;
+          const measurer_code = measurements[0].pedestal_id;
           const [sbmqb_customer_name, measurer_id] = key.split('-itfjrbk-');
 
           totalMeasurements.push({
@@ -452,7 +452,7 @@ app.get('/api/measurements/total', validateDate, async (req, res, next) => {
       {
         query += ` AND x.sbmqb_customer_name = "${customerName}"`;
       }
-    database.raw(`SELECT x.*, y.measurer_code FROM measurements x INNER JOIN measurers y ON x.measurer_id = y.id ${query} ORDER BY x.id desc`)
+    database.raw(`SELECT x.*, y.measurer_code, y.pedestal_id FROM measurements x INNER JOIN measurers y ON x.measurer_id = y.id ${query} ORDER BY x.id desc`)
     .then(([rows]) => { 
       const groupedMeasurements = groupMeasurementsByClientName(rows);
       const totalMeasurements = calculateTotalMeasurements(groupedMeasurements);
