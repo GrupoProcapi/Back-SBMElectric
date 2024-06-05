@@ -149,22 +149,27 @@ ${monthNameBegin} ${dayBegin} TO ${monthNameEnd} ${dayEnd}  YR
           }
           
           try {
-            if (result.QBXML.QBXMLMsgsRs[0].InvoiceAddRs[0].$.statusMessage == 'Status OK' && false) {
+            if (result.QBXML.QBXMLMsgsRs[0].InvoiceAddRs[0].$.statusMessage == 'Status OK') {
               //Update registro
-              database.raw(`UPDATE measurements SET status = "FACTURADO" WHERE id = ${result.QBXML.QBXMLMsgsRs[0].InvoiceAddRs[0].$.requestID}`)
+              database.raw(`UPDATE measurements SET status = "FACTURADO" WHERE sbmqb_invoices_id = ${result.QBXML.QBXMLMsgsRs[0].InvoiceAddRs[0].$.requestID}`)
               .then(([rows]) => rows[0])
               .then((row) => {
-                //Actualizado decide si continuar o no
-                database.raw('SELECT * FROM measurements WHERE status = "PROCESANDO" LIMIT 1')
+
+                database.raw(`UPDATE sbmqb_invoices SET status = "FACTURADO" WHERE sbmqb_invoice_id = ${result.QBXML.QBXMLMsgsRs[0].InvoiceAddRs[0].InvoiceRet.RefNumber[0]}`)
+                .then((row) => {
+                  //Actualizado decide si continuar o no
+                database.raw('SELECT * FROM sbmqb_invoices WHERE status = "PENDIENTE" LIMIT 1')
                 .then(([rows]) => rows[0])
                 .then((row) => row ?  1 : 100)
                 .then((response) => {
                   callback(null, { receiveResponseXMLResult: response })
                 })
+
+                })
               })
             } 
-            console.log(result.QBXML.QBXMLMsgsRs[0].InvoiceAddRs[0].InvoiceRet)
-            callback(null, { receiveResponseXMLResult: 100 })
+            
+            //callback(null, { receiveResponseXMLResult: 100 })
           } catch (err) {
             res.status(500).json({ message: err.message });
           }
