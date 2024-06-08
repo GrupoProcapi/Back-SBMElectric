@@ -563,7 +563,7 @@ app.post('/api/bill', validateCreateInvoice, async (req, res, next) => {
     const secretKey = 'bdd05bf894011885ff44';
     // Decodificacion del token recibido
     const newInvoice = await new Promise((resolve, reject) => {
-      jwt.verify(req.data_token, secretKey, (err, decoded) => {
+      jwt.verify(req.body.data_token, secretKey, (err, decoded) => {
           if (err) {
               return reject(err);
           }
