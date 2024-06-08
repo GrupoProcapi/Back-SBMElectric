@@ -18,6 +18,7 @@ const database = require("./database");
 const apiKeyValidator = require("./apiKeyValidator");
 const { validationResult } = require('express-validator');
 const { validateCreateUser, validateUpdateUser, validateId, validateDate, validateLogin, validateCreateMeasurer, validateUpdateMeasurer, validateUpdateInvoice, validateCreateMeasurements, validateUpdateMeasurements, validateCreateInvoice } = require('./validationRules');
+const jwt = require('jsonwebtoken');
 // Api
 const app = express();
 app.use(bodyParser.json());
@@ -39,7 +40,7 @@ const groupMeasurementsByClientName = (measurements) => {
   }, {});
 };
 
-const calculateTotalMeasurements = (groupedMeasurements) => {
+const calculateTotalMeasurements = (groupedMeasurements, from, to) => {
   const totalMeasurements = [];
 
   for (const key in groupedMeasurements) {
@@ -54,16 +55,37 @@ const calculateTotalMeasurements = (groupedMeasurements) => {
           const measurer_code = measurements[0].pedestal_id;
           const [sbmqb_customer_name, measurer_id, status] = key.split('-itfjrbk-');
 
+          //Utilizaremos jwt para  que podamos acceder a la información sin tener que hacer un post del body compuesto.
+          const secretKey = 'bdd05bf894011885ff44';
+          clientData = {
+            sbmqb_customer_name: sbmqb_customer_name,
+            sbmqb_service: sbmqb_service,
+            measurer_id : measurer_id,
+            measurer_code: measurer_code,
+            initial_measure_value: firstMeasurement,
+            current_measure_value: lastMeasurement,
+            total_measure_value: lastMeasurement - firstMeasurement,
+            status:status,
+            begin_date:from,
+            end_date:to,
+            ids: measurementIds
+          }
+
+          const clientToken = jwt.sign(clientData, secretKey, { expiresIn: '24h' });
+
           totalMeasurements.push({
-              sbmqb_customer_name: sbmqb_customer_name,
-              sbmqb_service: sbmqb_service,
-              measurer_id : measurer_id,
-              measurer_code: measurer_code,
-              initial_measure_value: firstMeasurement,
-              current_measure_value: lastMeasurement,
-              total_measure_value: lastMeasurement - firstMeasurement,
-              status:status,
-              ids: measurementIds
+            sbmqb_customer_name: sbmqb_customer_name,
+            sbmqb_service: sbmqb_service,
+            measurer_id : measurer_id,
+            measurer_code: measurer_code,
+            initial_measure_value: firstMeasurement,
+            current_measure_value: lastMeasurement,
+            total_measure_value: lastMeasurement - firstMeasurement,
+            status:status,
+            begin_date:from,
+            end_date:to,
+            ids: measurementIds,
+            data_token: clientToken
           });
       }
   }
@@ -456,7 +478,7 @@ app.get('/api/measurements/total', validateDate, async (req, res, next) => {
     database.raw(`SELECT x.*, y.measurer_code, y.pedestal_id FROM measurements x INNER JOIN measurers y ON x.measurer_id = y.id ${query} ORDER BY x.id desc`)
     .then(([rows]) => { 
       const groupedMeasurements = groupMeasurementsByClientName(rows);
-      const totalMeasurements = calculateTotalMeasurements(groupedMeasurements);
+      const totalMeasurements = calculateTotalMeasurements(groupedMeasurements, from, to);
       res.json({ message: totalMeasurements })
     })
     .catch(next);
@@ -533,12 +555,22 @@ app.delete('/api/measurements/:id', validateId, async (req, res, next) => {
 // Post Bill
 app.post('/api/bill', validateCreateInvoice, async (req, res, next) => {
   const errors = validationResult(req);
-  const newInvoice = req.body;
   if(!errors.isEmpty())
     {
       return res.status(400).json({ errors: errors.array() });
     }
   try {
+    const secretKey = 'bdd05bf894011885ff44';
+    // Decodificacion del token recibido
+    const newInvoice = await new Promise((resolve, reject) => {
+      jwt.verify(req.data_token, secretKey, (err, decoded) => {
+          if (err) {
+              return reject(err);
+          }
+          resolve(decoded);
+      });
+    });
+
     await database.transaction(async trx => {
       const [insertedInvoice] = await trx('sbmqb_invoices')
         .insert({
