@@ -571,9 +571,6 @@ app.post('/api/bill', validateCreateInvoice, async (req, res, next) => {
       });
     });
 
-    res.json({ message:  newInvoice});
-    return 
-
     await database.transaction(async trx => {
       const [insertedInvoice] = await trx('sbmqb_invoices')
         .insert({
