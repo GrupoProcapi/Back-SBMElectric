@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<QBWCXML>
+  <AppName>PostCustomers sbm-api</AppName>
+  <AppID>sbm-measurer</AppID>
+  <AppURL>https://itf-sbm-measurer.duckdns.org/qbwc</AppURL>
+  <CertURL>https://itf-sbm-measurer.duckdns.org/</CertURL>
+  <AppDescription>Enviar clientes registrados al endpoint</AppDescription>
+  <AppSupport>https://itf-sbm-measurer.duckdns.org/</AppSupport>
+  <UserName>test</UserName>
+  <OwnerID>{A9A83089-7DA7-4d27-A08C-7E162610395A}</OwnerID>
+  <FileID>{AE931E67-4AA5-4374-A32D-8EA4BEC92981}</FileID>
+  <QBType>QBFS</QBType>
+</QBWCXML>
