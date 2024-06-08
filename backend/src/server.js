@@ -602,6 +602,35 @@ app.post('/api/bill', validateCreateInvoice, async (req, res, next) => {
   }
 });
 
+// Get all Invoices
+app.get('/api/invoices', async (req, res, next) => {
+  try {
+    database.raw('SELECT * FROM sbmqb_invoices')
+    .then(([rows]) => res.json({ message: rows }))
+    .catch(next);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Get single Invoice
+app.get('/api/invoices/:id', validateId, async (req, res, next) => {
+  const errors = validationResult(req);
+  if(!errors.isEmpty())
+    {
+      return res.status(400).json({ errors: errors.array() });
+    }
+  try {
+    const invoiceId = req.params.id;
+    database.raw(`SELECT * FROM sbmqb_invoices WHERE id = ${invoiceId}`)
+    .then(([rows]) => rows[0])
+    .then((row) => row ? res.json({ message: row }) : res.status(404).json({ message: 'Invoice not found' }))
+    .catch(next);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // Update Invoice
 app.put('/api/invoices/:id', validateUpdateInvoice, async (req, res, next) => {
   const errors = validationResult(req);
