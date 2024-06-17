@@ -561,42 +561,48 @@ app.post('/api/bill', validateCreateInvoice, async (req, res, next) => {
     }
   try {
     const secretKey = 'bdd05bf894011885ff44';
-    // Decodificacion del token recibido
-    const newInvoice = await new Promise((resolve, reject) => {
-      jwt.verify(req.body.data_token, secretKey, (err, decoded) => {
-          if (err) {
-              return reject(err);
-          }
-          resolve(decoded);
+
+    const tokenPromises = req.body.data_token.map(async element => {
+
+      // Decodificacion del token recibido
+      var newInvoice = await new Promise((resolve, reject) => {
+        jwt.verify(element.dataToken, secretKey, (err, decoded) => {
+            if (err) {
+                return reject(err);
+            }
+            resolve(decoded);
+        });
       });
+
+      await database.transaction(async trx => {
+        const [insertedInvoice] = await trx('sbmqb_invoices')
+          .insert({
+            sbmqb_customer_name: newInvoice.sbmqb_customer_name,
+            sbmqb_service: newInvoice.sbmqb_service,
+            measurer_code: newInvoice.measurer_code,
+            initial_measure_value: newInvoice.initial_measure_value,
+            current_measure_value: newInvoice.current_measure_value,
+            total_measure_value: newInvoice.total_measure_value,
+            begin_date: newInvoice.begin_date,
+            end_date: newInvoice.end_date,
+            status: 'PENDIENTE',
+            sbmqb_invoice_id: "" 
+          })
+          .returning('*');
+
+        await trx('measurements')
+          .update({
+            status: 'PROCESANDO',
+            sbmqb_invoices_id: insertedInvoice
+          })
+          .whereIn('id', newInvoice.ids);
+      })
+      
     });
 
-    await database.transaction(async trx => {
-      const [insertedInvoice] = await trx('sbmqb_invoices')
-        .insert({
-          sbmqb_customer_name: newInvoice.sbmqb_customer_name,
-          sbmqb_service: newInvoice.sbmqb_service,
-          measurer_code: newInvoice.measurer_code,
-          initial_measure_value: newInvoice.initial_measure_value,
-          current_measure_value: newInvoice.current_measure_value,
-          total_measure_value: newInvoice.total_measure_value,
-          begin_date: newInvoice.begin_date,
-          end_date: newInvoice.end_date,
-          status: 'PENDIENTE',
-          sbmqb_invoice_id: "" 
-        })
-        .returning('*');
+    await Promise.all(tokenPromises);
+    res.status(200).json({ message:  "Todas las operaciones se completaron con éxito" });
 
-      await trx('measurements')
-        .update({
-          status: 'PROCESANDO',
-          sbmqb_invoices_id: insertedInvoice
-        })
-        .whereIn('id', newInvoice.ids);
-
-      res.json({ message:  "Invoice Created, Id: " + insertedInvoice });
-    })
-    .catch(next);
   } catch (err) {
     res.status(400).json({ message: err.message });
   }
