@@ -142,7 +142,7 @@ app.get("/drop", function(req, res, next) {
     .catch(next);
 });
 
-app.get("/updateServices", function(req, res, next) {
+app.get("/api/updateServices", function(req, res, next) {
   database.raw(`UPDATE sbmqb_customers SET sbmqb_service = '4113 &#183; INGRESOS ELECTRIDIDAD:70000:70004-Electricity T. @ 0.48/KW' `)
     .then(([rows, columns]) => {
       database.raw(`UPDATE sbmqb_customers SET sbmqb_service = '4113 &#183; INGRESOS ELECTRIDIDAD:70000:70001-Metered elect. @ 0.415/KW' WHERE sbmqb_id IN ('800004FE-1559630569', '8000153F-1651439918', '800006AB-1559694362', '800015FD-1656190661', '800003B8-1559630368', '8000097D-1560200598', '80001643-1659555617', '80001545-1651767472', '8000168F-1662581531', '80000F65-1610125439', '8000168C-1662564298', '80001596-1653594896', '80000426-1559630566', '800006A6-1559694362', '80000483-1559630567', '800009D9-1561573293', '80000844-1559694369', '800001F4-1559630361', '800005DF-1559694358', '80001090-1618934076', '800007F5-1559694368')`)
