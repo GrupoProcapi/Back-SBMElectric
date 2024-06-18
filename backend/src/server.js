@@ -112,7 +112,7 @@ app.get("/", function(req, res, next) {
   res.json({ application: "SBM Measurer API", version: 1 })
 });
 
-app.use(apiKeyValidator);
+//app.use(apiKeyValidator);
 
 app.get("/schema", function(req, res, next) {
   database.raw('CREATE DATABASE sbm_electric_measurement')
