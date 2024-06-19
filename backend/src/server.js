@@ -95,7 +95,7 @@ const calculateTotalMeasurements = (groupedMeasurements, from, to) => {
 
 // Middleware para permitir CORS desde múltiples dominios
 app.use((req, res, next) => {
-  const allowedOrigins = ['http://localhost:5173','*'];
+  const allowedOrigins = ['http://localhost:5173','https://zlsjlkmn-5173.use2.devtunnels.ms','*'];
   const origin = req.headers.origin;
 
   if (allowedOrigins.includes(origin)) {
