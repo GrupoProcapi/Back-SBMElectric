@@ -395,7 +395,7 @@ app.post('/api/measurements', validateCreateMeasurements, async (req, res, next)
       }
       // manejar la medida anterior para asignar lastmeasure
 
-      const dateStr = row.last_measure_date;
+      const dateStr = row.current_measure_date;
       const date = new Date(dateStr);
       const formattedDate = date.toISOString().slice(0, 19).replace('T', ' ');
       //console.log(formattedDate);  // '2024-05-25 18:27:09'
