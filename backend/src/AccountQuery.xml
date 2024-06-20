@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<?qbxml version="7.0"?>
+<QBXML>
+    <QBXMLMsgsRq onError="stopOnError">
+        <AccountQueryRq requestID="1">
+            <!-- <AccountType>Bank</AccountType> Esto es opcional y solo un ejemplo -->
+            <ActiveStatus>ActiveOnly</ActiveStatus>
+        </AccountQueryRq>
+    </QBXMLMsgsRq>
+</QBXML>

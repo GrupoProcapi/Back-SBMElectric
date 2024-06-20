@@ -6,20 +6,25 @@ services:
       context: backend
       target: development
     command: npm run start-watch
+    restart: unless-stopped
     environment:
       - DATABASE_DB=example
       - DATABASE_USER=root
       - DATABASE_PASSWORD=/run/secrets/db-password
       - DATABASE_HOST=db
+      - DATABASE_PORT=3306
       - NODE_ENV=development
     ports:
-      - 80:80
+    #  - 80:80
+    #  - 4747:4747
       - 9229:9229
       - 9230:9230
     secrets:
       - db-password
     volumes:
       - ./backend/src:/code/src:ro
+      - ./backend/migrations:/code/migrations:ro
+      - ./backend/seeds:/code/seeds:ro
       - ./backend/package.json:/code/package.json
       - ./backend/package-lock.json:/code/package-lock.json
       - back-notused:/opt/app/node_modules
@@ -44,12 +49,55 @@ services:
     environment:
       - MYSQL_DATABASE=example
       - MYSQL_ROOT_PASSWORD_FILE=/run/secrets/db-password
+#    ports:
+#      - 3306:3306
+  webserver:
+    image: nginx:mainline-alpine
+    container_name: webserver
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - web-static:/var/www/html
+      - ./nginx-conf:/etc/nginx/conf.d
+      - certbot-etc:/etc/letsencrypt
+      - certbot-var:/var/lib/letsencrypt
+      - dhparam:/etc/ssl/certs
+    depends_on:
+      - backend
+    networks:
+      - public
+  certbot:
+    image: certbot/certbot
+    container_name: certbot
+    volumes:
+      - certbot-etc:/etc/letsencrypt
+      - certbot-var:/var/lib/letsencrypt
+      - web-static:/var/www/html
+    depends_on:
+      - webserver
+    command: certonly --webroot --webroot-path=/var/www/html --email ingeniustechnologyfactory@gmail.com --agree-tos --no-eff-email --force-renewal -d itf-sbm-measurer.duckdns.org  -d www.itf-sbm-measurer.duckdns.org
 networks:
   public:
   private:
 volumes:
   back-notused:
   db-data:
+  certbot-etc:
+  certbot-var:
+  web-static:
+    driver: local
+    driver_opts:
+      type: none
+      device: ./web-static/
+      o: bind
+  dhparam:
+    driver: local
+    driver_opts:
+      type: none
+      device: ./dhparam/
+      o: bind
 secrets:
   db-password:
     file: db/password.txt

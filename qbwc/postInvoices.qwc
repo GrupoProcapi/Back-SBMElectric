@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<QBWCXML>
+  <AppName>PostInvoices sbm-api</AppName>
+  <AppID>sbm-measurer</AppID>
+  <AppURL>https://itf-sbm-measurer.duckdns.org/invoice</AppURL>
+  <CertURL>https://itf-sbm-measurer.duckdns.org/</CertURL>
+  <AppDescription>Crea facturas pendientes en clientes</AppDescription>
+  <AppSupport>https://itf-sbm-measurer.duckdns.org/</AppSupport>
+  <UserName>test</UserName>
+  <OwnerID>{A9A83089-7DA7-4d27-A08C-7E16261039B4}</OwnerID>
+  <FileID>{AE931E67-4AA5-4374-A32D-8EA4BEC929F2}</FileID>
+  <QBType>QBFS</QBType>
+</QBWCXML>

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<?qbxml version="7.0"?>
+<QBXML>
+	<QBXMLMsgsRq onError="stopOnError">
+		<InvoiceAddRq requestID = "0">
+			<InvoiceAdd defMacro = "TxnID:NewInvoice">
+				<CustomerRef>
+					<FullName>Test BK - 1</FullName>
+				</CustomerRef>
+				<TemplateRef>
+					<ListID>8000001A-1559700385</ListID>
+					<FullName>SHELTER BAY INVOICE2019</FullName>
+				</TemplateRef>
+				<TxnDate>2024-05-21</TxnDate>
+				<InvoiceLineAdd>
+					<ItemRef>
+						<FullName>4113 &#183; INGRESOS ELECTRIDIDAD:70000:70002-Metered elect. @ 0.415/KW</FullName>
+					</ItemRef>
+					<Desc>Capturado desde SBM Electric Meter</Desc>
+					<Quantity >7</Quantity>
+				</InvoiceLineAdd>
+			</InvoiceAdd>
+		</InvoiceAddRq>
+	</QBXMLMsgsRq>
+</QBXML>

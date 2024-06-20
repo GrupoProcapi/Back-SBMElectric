@@ -69,3 +69,44 @@ Removing express-mysql_db_1       ... done
 Removing network express-mysql_default
 
 ```
+
+## Database handle
+
+We are handle the database with https://knexjs.org
+
+Migration structure:
+```
+.
+├── backend
+│   ├── migrations
+│   │     └── 20240502013643_v1.js
+│   ├── knexfile.js
+│   ...
+```
+It is using the config.js to connect to the database too.
+
+### Running Migrations
+
+```
+$ docker images
+----> Here take the IMAGE_ID
+$ docker exec -it {IMAGE_ID} bash -c "knex migrate:latest"
+```
+
+### Expected result
+```
+Using environment: development
+Batch 1 run: 1 migrations
+```
+If the migrations is already runned
+```
+Using environment: development
+Already up to date
+```
+
+### Running Seeds
+```
+$ docker images
+----> Here take the IMAGE_ID
+$ docker exec -it {IMAGE_ID} bash -c "knex seed:run"
+```
