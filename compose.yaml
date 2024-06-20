@@ -77,8 +77,7 @@ services:
       - web-static:/var/www/html
     depends_on:
       - webserver
-    command: certbot delete --cert-name electric-api.shelterbaymarina.com
-#certonly --webroot --webroot-path=/var/www/html --email ingeniustechnologyfactory@gmail.com --agree-tos --no-eff-email -d electric-api.shelterbaymarina.com
+    command: certonly --webroot --webroot-path=/var/www/html --email ingeniustechnologyfactory@gmail.com --agree-tos --no-eff-email -d electric-api.shelterbaymarina.com
 networks:
   public:
   private:
