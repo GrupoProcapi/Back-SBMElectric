@@ -56,7 +56,7 @@ server {
         }
 
         location @front-end {
-                proxy_pass http://electric.shelterbaymarina.com;
+                proxy_pass http://localhost:5173;
                 add_header X-Frame-Options "SAMEORIGIN" always;
                 add_header X-XSS-Protection "1; mode=block" always;
                 add_header X-Content-Type-Options "nosniff" always;
