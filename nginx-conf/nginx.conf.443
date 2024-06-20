@@ -1,7 +1,7 @@
 server {
         listen 80;
         listen [::]:80;
-        server_name electric-api.shelterbaymarina.com www.electric-api.shelterbaymarina.com;
+        server_name electric-api.shelterbaymarina.com;
 
         location ~ /.well-known/acme-challenge {
           allow all;
@@ -16,7 +16,7 @@ server {
 server {
         listen 443 ssl http2;
         listen [::]:443 ssl http2;
-        server_name electric-api.shelterbaymarina.com www.electric-api.shelterbaymarina.com;
+        server_name electric-api.shelterbaymarina.com;
 
         server_tokens off;
 
