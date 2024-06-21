@@ -73,9 +73,28 @@ const calculateTotalMeasurements = (groupedMeasurements, from, to) => {
 
           const clientToken = jwt.sign(clientData, secretKey, { expiresIn: '24h' });
 
+          var precio = "0.48"
+          switch (sbmqb_service) {
+            case "4113 &#183; INGRESOS ELECTRIDIDAD:70000:70004-Electricity T. @ 0.48/KW":
+              precio = "0.48/KW"
+              break;
+            case "4113 &#183; INGRESOS ELECTRIDIDAD:70000:70003-Metered elect. @ 0.21/KW":
+              precio = "0.21/KW"
+              break;
+            case "4113 &#183; INGRESOS ELECTRIDIDAD:70000:70002-Metered elect. @ 0.415/KW":
+              precio = "0.415/KW"
+              break;
+            case "4113 &#183; INGRESOS ELECTRIDIDAD:70000:70001-Metered elect. @ 0.415/KW":
+              precio = "0.415/KW"
+              break;
+            default:
+              precio = "0.48/KW"
+              break;
+          }
+
           totalMeasurements.push({
             sbmqb_customer_name: sbmqb_customer_name,
-            sbmqb_service: sbmqb_service,
+            sbmqb_service: precio,
             measurer_id : measurer_id,
             measurer_code: measurer_code,
             initial_measure_value: firstMeasurement,
