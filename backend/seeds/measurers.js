@@ -49,7 +49,7 @@ exports.seed = function (knex) {
         { id: 43, pedestal: 'MBP13', measurer_code: 'MD336', pedestal_id: 'MBP13-MD336', muelle: 'MUELLE B' },
         { id: 44, pedestal: 'MBP13', measurer_code: 'MD337', pedestal_id: 'MBP13-MD337', muelle: 'MUELLE B' },
         { id: 45, pedestal: 'MBP13100A', measurer_code: 'MD338', pedestal_id: 'MBP13100A-MD338', muelle: 'MUELLE B' },
-        { id: 46, pedestal: 'MBPTX480', measurer_code: 'MD347', pedestal_id: 'MBPTX480-MD347', muelle: '' },
+        { id: 46, pedestal: 'MBPTX480', measurer_code: 'MD347', pedestal_id: 'MBPTX480-MD347', muelle: 'MUELLE B' },
         { id: 47, pedestal: 'MCP12', measurer_code: 'MD046', pedestal_id: 'MCP12-MD046', muelle: 'MUELLE C' },
         { id: 48, pedestal: 'MCP12', measurer_code: 'MD047', pedestal_id: 'MCP12-MD047', muelle: 'MUELLE C' },
         { id: 49, pedestal: 'MCP35', measurer_code: 'MD048', pedestal_id: 'MCP35-MD048', muelle: 'MUELLE C' },
