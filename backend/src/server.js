@@ -51,7 +51,7 @@ const calculateTotalMeasurements = (groupedMeasurements, from, to) => {
           const firstMeasurement = measurements[0].current_measure_value;
           const lastMeasurement = measurements[measurements.length - 1].current_measure_value;
           const measurementIds = measurements.map(measurement => measurement.id);
-          const sbmqb_service = measurements[0].sbmqb_service;
+          const sbmqb_service = measurements[measurements.length - 1].sbmqb_service;
           const measurer_code = measurements[0].pedestal_id;
           const [sbmqb_customer_name, measurer_id, status] = key.split('-itfjrbk-');
 
@@ -72,6 +72,26 @@ const calculateTotalMeasurements = (groupedMeasurements, from, to) => {
           }
 
           const clientToken = jwt.sign(clientData, secretKey, { expiresIn: '24h' });
+
+          /*
+          var precio = "0.48"
+          switch (sbmqb_service) {
+            case "4113 &#183; INGRESOS ELECTRIDIDAD:70000:70004-Electricity T. @ 0.48/KW":
+              precio = "0.48/KW"
+              break;
+            case "4113 &#183; INGRESOS ELECTRIDIDAD:70000:70003-Metered elect. @ 0.21/KW":
+              precio = "0.21/KW"
+              break;
+            case "4113 &#183; INGRESOS ELECTRIDIDAD:70000:70002-Metered elect. @ 0.415/KW":
+              precio = "0.415/KW"
+              break;
+            case "4113 &#183; INGRESOS ELECTRIDIDAD:70000:70001-Metered elect. @ 0.415/KW":
+              precio = "0.415/KW"
+              break;
+            default:
+              precio = "0.48/KW"
+              break;
+          }*/
 
           totalMeasurements.push({
             sbmqb_customer_name: sbmqb_customer_name,
@@ -95,7 +115,7 @@ const calculateTotalMeasurements = (groupedMeasurements, from, to) => {
 
 // Middleware para permitir CORS desde múltiples dominios
 app.use((req, res, next) => {
-  const allowedOrigins = ['http://localhost:5173','https://zlsjlkmn-5173.use2.devtunnels.ms','*'];
+  const allowedOrigins = ['http://localhost:5173','https://zlsjlkmn-5173.use2.devtunnels.ms','https://electric.shelterbaymarina.com', 'https://sbm-electricmeter-imns8.ondigitalocean.app','https://electric.shelterbaymarina.com','*'];
   const origin = req.headers.origin;
 
   if (allowedOrigins.includes(origin)) {
@@ -395,7 +415,7 @@ app.post('/api/measurements', validateCreateMeasurements, async (req, res, next)
       }
       // manejar la medida anterior para asignar lastmeasure
 
-      const dateStr = row.last_measure_date;
+      const dateStr = row.current_measure_date;
       const date = new Date(dateStr);
       const formattedDate = date.toISOString().slice(0, 19).replace('T', ' ');
       //console.log(formattedDate);  // '2024-05-25 18:27:09'

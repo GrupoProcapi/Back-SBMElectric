@@ -6,7 +6,7 @@ services:
       context: backend
       target: development
     command: npm run start-watch
-    restart: unless-stopped
+    restart: always
     environment:
       - DATABASE_DB=example
       - DATABASE_USER=root
@@ -77,7 +77,7 @@ services:
       - web-static:/var/www/html
     depends_on:
       - webserver
-    command: certonly --webroot --webroot-path=/var/www/html --email ingeniustechnologyfactory@gmail.com --agree-tos --no-eff-email --force-renewal -d itf-sbm-measurer.duckdns.org  -d www.itf-sbm-measurer.duckdns.org
+    command: certonly --webroot --webroot-path=/var/www/html --email ingeniustechnologyfactory@gmail.com --force-renewal --agree-tos --no-eff-email -d electric-api.shelterbaymarina.com
 networks:
   public:
   private:
