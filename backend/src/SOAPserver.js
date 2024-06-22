@@ -160,7 +160,7 @@ const service = {
                           companyName = element.CompanyName[0]
 
                         var status =  element.IsActive[0] ? "ACTIVE" : "SUSPENDED"
-                        database.raw(`INSERT INTO sbmqb_customers (sbmqb_id, name, full_name, company_name, class, status) VALUES("${element.ListID[0]}", "${element.Name[0]}" , "${element.FullName[0]}", "${companyName}", "MARINA", "${status}")`)
+                        database.raw(`INSERT INTO sbmqb_customers (sbmqb_id, name, full_name, company_name, sbmqb_service, class, status) VALUES("${element.ListID[0]}", "${element.Name[0]}" , "${element.FullName[0]}", "${companyName}", "4113 &#183; INGRESOS ELECTRIDIDAD:70000:70004-Electricity T. @ 0.48/KW", "MARINA", "${status}")`)
                         .then(([line]) => line[0])
                         .then((line) => console.log({message : "sbmqb_customers Created. CustomerID:" + element.ListID[0]}))
                         .catch(console.log({message : "Error Insertando " + element.ListID[0]}));
