@@ -616,6 +616,9 @@ app.post('/api/bill', validateCreateInvoice, async (req, res, next) => {
         });
       });
 
+      if (newInvoice.sbmqb_customer_name == "MEDIDOR VACIO")
+        return Promise.resolve(); // Retorna una promesa resuelta
+
       await database.transaction(async trx => {
         const [insertedInvoice] = await trx('sbmqb_invoices')
           .insert({
