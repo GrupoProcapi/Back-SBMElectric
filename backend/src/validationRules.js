@@ -94,9 +94,6 @@ const validateUpdateMeasurements = [
     //body('sbmqb_customer_name').notEmpty().withMessage('sbmqb_customer_name parameter is required').isString().withMessage('sbmqb_customer_name parameter must be a string'),
     //body('current_measure_value').notEmpty().withMessage('current_measure_value parameter is required').isDecimal().withMessage('current_measure_value parameter must be a decimal'),
     //body('current_measure_date').notEmpty().withMessage('current_measure_date parameter is required').isString().withMessage('current_measure_date parameter must be a string on this format: \'1999-12-30 01:55:56.416\''),
-    body('status').notEmpty().withMessage('status parameter missing')
-    .isString().withMessage('status parameter must be a string')
-    .matches(/^(PENDIENTE|PROCESANDO|FACTURADO)$/).withMessage('status must be either \'PENDIENTE\', \'PROCESANDO\' or \'FACTURADO\'')
 ];
 
 
