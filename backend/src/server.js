@@ -556,12 +556,14 @@ app.put('/api/measurements/:id', validateUpdateMeasurements, async (req, res, ne
     .then(([rows]) => rows[0])
     .then((row) => row ? 
         database.raw(`UPDATE measurements SET 
+        measurer_id=${measurement.measurer_id}
         sbmqb_customer_name="${measurement.sbmqb_customer_name}",
         last_measure_value="${measurement.last_measure_value}",
         last_measure_date="${measurement.last_measure_date}",
         current_measure_value="${measurement.current_measure_value}",
         current_measure_date="${measurement.current_measure_date}",
-        description="${measurement.description}"
+        description="${measurement.description}", 
+        status="${measurement.status}"
         WHERE id = ${measurementId}`)
         .then(([rows]) => rows[0])
         .then((row) => res.json({ message: 'Measurement updated.' }))
