@@ -563,7 +563,7 @@ app.put('/api/measurements/:id', validateUpdateMeasurements, async (req, res, ne
         current_measure_value="${measurement.current_measure_value}",
         current_measure_date="${measurement.current_measure_date}",
         description="${measurement.description}", 
-        status="${measurement.status ? measurement.status : 'status'}"
+        status=${measurement.status ? "'"+measurement.status+"'" : 'status'}
         WHERE id = ${measurementId}`)
         .then(([rows]) => rows[0])
         .then((row) => res.json({ message: 'Measurement updated.' }))
