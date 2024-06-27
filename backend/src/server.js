@@ -695,7 +695,9 @@ app.put('/api/invoices/:id', validateUpdateInvoice, async (req, res, next) => {
     database.raw(`SELECT id FROM sbmqb_invoices WHERE id = ${invoiceId}`)
     .then(([rows]) => rows[0])
     .then((row) => row ? 
-        database.raw(`UPDATE sbmqb_invoices SET status="${invoice.status}" WHERE id = ${invoiceId}`)
+        database.raw(`UPDATE sbmqb_invoices SET status="${invoice.status}",
+        sbmqb_service="${invoice.sbmqb_service}"
+        WHERE id = ${invoiceId}`)
         .then(([rows]) => rows[0])
         .then((row) => res.json({ message: 'Invoice updated.' }))
     : res.status(404).json({ message: 'Invoice not found' }))
