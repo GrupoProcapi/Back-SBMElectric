@@ -556,7 +556,7 @@ app.put('/api/measurements/:id', validateUpdateMeasurements, async (req, res, ne
     .then(([rows]) => rows[0])
     .then((row) => row ? 
         database.raw(`UPDATE measurements SET 
-        measurer_id=${measurement.measurer_id ? measurement.measurer_id : 'measurer_id'}
+        measurer_id=${measurement.measurer_id ? measurement.measurer_id : 'measurer_id'},
         sbmqb_customer_name="${measurement.sbmqb_customer_name}",
         last_measure_value="${measurement.last_measure_value}",
         last_measure_date="${measurement.last_measure_date}",
