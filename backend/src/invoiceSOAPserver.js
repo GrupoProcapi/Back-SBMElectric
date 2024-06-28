@@ -34,7 +34,21 @@ const service = {
         
         //Sacar una medida pendiente a facturar
         try {
-          database.raw(`SELECT * FROM sbmqb_invoices WHERE status = "PENDIENTE" LIMIT 1`)
+          database.raw(`SELECT 
+            invoice.id,
+            invoice.sbmqb_service,
+            invoice.begin_date,
+            invoice.end_date,
+            invoice.measurer_code,
+            invoice.initial_measure_value,
+            invoice.current_measure_value,
+            invoice.total_measure_value,
+            invoice.total_measure_value,
+            invoice.sbmqb_customer_name, 
+            customer.sbmqb_id
+            FROM sbmqb_invoices invoice
+            JOIN sbmqb_customers  customer ON invoice.sbmqb_customer_name = customer.full_name
+            WHERE invoice.status = "PENDIENTE" LIMIT 1`)
           .then(([rows, columns]) => rows[0])
           .then((rows) => {
             //No hay solicitudes pendientes
@@ -57,8 +71,11 @@ const service = {
             const day = String(today.getDate()).padStart(2, '0');
             var date=`${year}-${month}-${day}`;
             var fullName =  rows.sbmqb_customer_name 
+            //Buscamos el identificado de QuickBooks basado en el nombre
+
+            var customerId = rows.sbmqb_id
             // Utilizamos una expresión regular para capturar la parte deseada
-            const cadena = rows.sbmqb_service
+            const cadena = rows.sbmqb_service 
             const regex = /(\d+-)(.*)/;
             const resultado = cadena.match(regex);
 
@@ -79,7 +96,7 @@ const service = {
             // Obtener el día del mes
             const dayBegin = dateBegin.getUTCDate();
             const dayEnd = dateEnd.getUTCDate();
-
+            
             var description = `
 ${servicioExtraido}
 DOCK    ${rows.measurer_code}
@@ -90,6 +107,8 @@ ${monthNameBegin} ${dayBegin} TO ${monthNameEnd} ${dayEnd}  YR
             `
             var qty = rows.total_measure_value
             var rate = rows.sbmqb_service
+            // old searching CustomerRef <FullName>${fullName}</FullName>
+
             const requestXML = `<?xml version="1.0" encoding="utf-8"?>
             <?qbxml version="7.0"?>
             <QBXML>
@@ -97,7 +116,7 @@ ${monthNameBegin} ${dayBegin} TO ${monthNameEnd} ${dayEnd}  YR
                 <InvoiceAddRq requestID = "${rows.id}">
                   <InvoiceAdd defMacro = "TxnID:NewInvoiceEM${rows.id}">
                     <CustomerRef>
-                      <FullName>${fullName}</FullName>
+                      <ListID >${customerId}</ListID>
                     </CustomerRef>
                     <ClassRef>
                       <FullName >MARINA</FullName>
