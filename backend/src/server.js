@@ -698,6 +698,7 @@ app.put('/api/invoices/:id', validateUpdateInvoice, async (req, res, next) => {
     .then(([rows]) => rows[0])
     .then((row) => row ? 
         database.raw(`UPDATE sbmqb_invoices SET status="${invoice.status}",
+        sbmqb_customer_name ="${invoice.sbmqb_customer_name}",
         sbmqb_service="${invoice.sbmqb_service}"
         WHERE id = ${invoiceId}`)
         .then(([rows]) => rows[0])
@@ -738,7 +739,7 @@ app.get('/api/customers/:id', async (req, res, next) => {
 app.put('/api/customers', async (req, res, next) => {
   try {
     const customer = req.body;
-    database.raw(`UPDATE sbmqb_customers SET sbmqb_service = "${customer.sbmqb_service}" where sbmqb_id = "${customer.sbmqb_id}"`)
+    database.raw(`UPDATE sbmqb_customers SET sbmqb_service = "${customer.sbmqb_service}", full_name = "${customer.full_name}" where sbmqb_id = "${customer.sbmqb_id}"`)
     .then(([rows, columns]) => rows)
     .then((row) => res.json({ message: "Se actualizo el servicio del cliente a: "+customer.sbmqb_service }))
     .catch(next);
