@@ -48,7 +48,7 @@ const calculateTotalMeasurements = (groupedMeasurements, from, to) => {
           const measurements = groupedMeasurements[key];
           measurements.sort((a, b) => a.id - b.id);
 
-          const firstMeasurement = measurements[0].current_measure_value;
+          const firstMeasurement = measurements[0].last_measure_value;
           const lastMeasurement = measurements[measurements.length - 1].current_measure_value;
           const measurementIds = measurements.map(measurement => measurement.id);
           const sbmqb_service = measurements[measurements.length - 1].sbmqb_service;
