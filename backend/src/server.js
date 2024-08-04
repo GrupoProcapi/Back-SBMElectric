@@ -398,6 +398,8 @@ app.post('/api/measurements', validateCreateMeasurements, async (req, res, next)
     }
   try {
     const newMeasurer = req.body;
+    console.log("Solicitud de creacion de medida: ")
+    console.log(newMeasurer)
 
     
     database.raw(`SELECT * FROM measurements WHERE measurer_id=${newMeasurer.measurer_id} ORDER BY id desc`)
