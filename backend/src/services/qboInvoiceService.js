@@ -7,12 +7,44 @@ const getQBOItems = async () => {
   return response.QueryResponse?.Item || [];
 };
 
-const findElectricityItem = async () => {
-  const response = await qboClient.makeApiCall(
-    "/query?query=SELECT * FROM Item WHERE Name LIKE '%Electricity%' OR Name LIKE '%Electric%'"
+const findElectricityItem = async (sbmqbService) => {
+  // Extraer código del item del servicio (ej: "4113...70000:70004-Electricity" -> "70004")
+  let itemCode = null;
+  if (sbmqbService) {
+    // Buscar patrón 7000X en el servicio
+    const match = sbmqbService.match(/\b(7000\d+)\b/g);
+    if (match && match.length > 0) {
+      // Tomar el último código encontrado (el más específico)
+      itemCode = match[match.length - 1];
+      console.log('Código de item extraído del servicio:', itemCode);
+    }
+  }
+  
+  // Buscar por el código específico del item
+  if (itemCode) {
+    const response = await qboClient.makeApiCall(
+      `/query?query=SELECT * FROM Item WHERE Sku LIKE '%${itemCode}%' OR Name LIKE '%${itemCode}%'`
+    );
+    const items = response.QueryResponse?.Item || [];
+    if (items.length > 0) {
+      console.log('Item de electricidad encontrado:', items[0].Name, 'ID:', items[0].Id);
+      return items[0];
+    }
+  }
+  
+  // Fallback: buscar cualquier item de electricidad
+  const fallbackResponse = await qboClient.makeApiCall(
+    "/query?query=SELECT * FROM Item WHERE Name LIKE '%Electricity%' OR Name LIKE '%Electric%' OR Name LIKE '%METERED%'"
   );
-  const items = response.QueryResponse?.Item || [];
-  return items[0] || null;
+  const fallbackItems = fallbackResponse.QueryResponse?.Item || [];
+  
+  if (fallbackItems.length > 0) {
+    console.log('Item de electricidad encontrado (fallback):', fallbackItems[0].Name, 'ID:', fallbackItems[0].Id);
+    return fallbackItems[0];
+  }
+  
+  console.log('No se encontró item de electricidad');
+  return null;
 };
 
 const createInvoice = async (invoiceData) => {
@@ -22,7 +54,11 @@ const createInvoice = async (invoiceData) => {
     throw new Error(`Cliente no encontrado en QBO: ${invoiceData.sbmqb_customer_name}. Ejecuta primero /api/qbo/customers/sync`);
   }
   
-  let electricityItem = await findElectricityItem();
+  let electricityItem = await findElectricityItem(invoiceData.sbmqb_service);
+  
+  if (!electricityItem) {
+    throw new Error('No se encontró el item de electricidad en QBO. Verifica que exista un item con SKU 70000/70001/70004 o nombre que contenga "Electricity".');
+  }
   
   const servicioExtraido = invoiceData.sbmqb_service ? 
     invoiceData.sbmqb_service.match(/(\d+-)(.*)/)?.[2] || 'Electricity' : 
