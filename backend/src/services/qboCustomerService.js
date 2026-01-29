@@ -34,7 +34,7 @@ const syncCustomers = async () => {
         created++;
       } else if (!existing.qbo_id) {
         await database('sbmqb_customers')
-          .where('id', existing.id)
+          .where('sbmqb_id', existing.sbmqb_id)
           .update({ 
             qbo_id: customer.Id,
             status: customer.Active ? 'ACTIVE' : 'SUSPENDED'
@@ -75,7 +75,7 @@ const findCustomerByName = async (customerName) => {
   
   if (qboCustomer && localCustomer) {
     await database('sbmqb_customers')
-      .where('id', localCustomer.id)
+      .where('sbmqb_id', localCustomer.sbmqb_id)
       .update({ qbo_id: qboCustomer.Id });
     return { ...localCustomer, qbo_id: qboCustomer.Id };
   }
