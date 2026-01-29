@@ -20,30 +20,38 @@ const findElectricityItem = async (sbmqbService) => {
     }
   }
   
-  // Buscar por el código específico del item
+  // Obtener todos los items de tipo Service y filtrar en JS
+  const response = await qboClient.makeApiCall(
+    "/query?query=SELECT * FROM Item WHERE Type = 'Service' AND Active = true"
+  );
+  const allItems = response.QueryResponse?.Item || [];
+  
+  console.log(`Items de servicio encontrados: ${allItems.length}`);
+  
+  // Buscar por código específico primero
   if (itemCode) {
-    const response = await qboClient.makeApiCall(
-      `/query?query=SELECT * FROM Item WHERE Sku LIKE '%${itemCode}%' OR Name LIKE '%${itemCode}%'`
+    const exactMatch = allItems.find(item => 
+      item.Name?.startsWith(itemCode) || item.Sku?.startsWith(itemCode)
     );
-    const items = response.QueryResponse?.Item || [];
-    if (items.length > 0) {
-      console.log('Item de electricidad encontrado:', items[0].Name, 'ID:', items[0].Id);
-      return items[0];
+    if (exactMatch) {
+      console.log('Item de electricidad encontrado:', exactMatch.Name, 'ID:', exactMatch.Id);
+      return exactMatch;
     }
   }
   
-  // Fallback: buscar cualquier item de electricidad
-  const fallbackResponse = await qboClient.makeApiCall(
-    "/query?query=SELECT * FROM Item WHERE Name LIKE '%Electricity%' OR Name LIKE '%Electric%' OR Name LIKE '%METERED%'"
+  // Fallback: buscar cualquier item que contenga "electr" o "7000"
+  const electricItem = allItems.find(item => 
+    item.Name?.toLowerCase().includes('electr') || 
+    item.Name?.startsWith('7000') ||
+    item.Sku?.startsWith('7000')
   );
-  const fallbackItems = fallbackResponse.QueryResponse?.Item || [];
   
-  if (fallbackItems.length > 0) {
-    console.log('Item de electricidad encontrado (fallback):', fallbackItems[0].Name, 'ID:', fallbackItems[0].Id);
-    return fallbackItems[0];
+  if (electricItem) {
+    console.log('Item de electricidad encontrado (fallback):', electricItem.Name, 'ID:', electricItem.Id);
+    return electricItem;
   }
   
-  console.log('No se encontró item de electricidad');
+  console.log('No se encontró item de electricidad. Items disponibles:', allItems.map(i => i.Name));
   return null;
 };
 
