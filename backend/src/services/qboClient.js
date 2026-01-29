@@ -104,6 +104,11 @@ const makeApiCall = async (endpoint, method = 'GET', body = null) => {
   const { client, realmId } = await getAuthenticatedClient();
   const url = `${getBaseUrl()}/v3/company/${realmId}${endpoint}`;
   
+  console.log(`QBO API Call: ${method} ${url}`);
+  if (body) {
+    console.log('QBO Request Body:', JSON.stringify(body, null, 2));
+  }
+  
   const options = {
     url,
     method,
@@ -119,19 +124,26 @@ const makeApiCall = async (endpoint, method = 'GET', body = null) => {
   
   const response = await client.makeApiCall(options);
   
+  let result;
   if (response.getJson && typeof response.getJson === 'function') {
-    return response.getJson();
+    result = response.getJson();
+  } else if (response.json && typeof response.json === 'object') {
+    result = response.json;
+  } else if (typeof response.body === 'string') {
+    result = JSON.parse(response.body);
+  } else {
+    result = response;
   }
   
-  if (response.json && typeof response.json === 'object') {
-    return response.json;
+  console.log('QBO Response:', JSON.stringify(result, null, 2));
+  
+  if (result.Fault) {
+    const errorMsg = result.Fault.Error?.[0]?.Message || 'Error desconocido de QBO';
+    const errorDetail = result.Fault.Error?.[0]?.Detail || '';
+    throw new Error(`QBO Error: ${errorMsg} - ${errorDetail}`);
   }
   
-  if (typeof response.body === 'string') {
-    return JSON.parse(response.body);
-  }
-  
-  return response;
+  return result;
 };
 
 module.exports = {
