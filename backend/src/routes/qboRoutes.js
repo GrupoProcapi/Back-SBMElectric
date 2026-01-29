@@ -95,4 +95,14 @@ router.get('/items', async (req, res) => {
   }
 });
 
+router.get('/invoices', async (req, res) => {
+  try {
+    const invoices = await qboInvoiceService.getQBOInvoices();
+    res.json({ message: invoices });
+  } catch (error) {
+    console.error('Error obteniendo facturas QBO:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;

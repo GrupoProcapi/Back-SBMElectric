@@ -84,6 +84,13 @@ ${monthNames[beginDate.getUTCMonth()]} ${beginDate.getUTCDate()} TO ${monthNames
   throw new Error('Error creando factura en QBO: ' + JSON.stringify(response));
 };
 
+const getQBOInvoices = async (maxResults = 100) => {
+  const response = await qboClient.makeApiCall(
+    `/query?query=SELECT * FROM Invoice ORDERBY MetaData.CreateTime DESC MAXRESULTS ${maxResults}`
+  );
+  return response.QueryResponse?.Invoice || [];
+};
+
 const processPendingInvoices = async () => {
   const pendingInvoices = await database('sbmqb_invoices')
     .where('status', 'PENDIENTE');
@@ -126,6 +133,7 @@ const processPendingInvoices = async () => {
 
 module.exports = {
   getQBOItems,
+  getQBOInvoices,
   createInvoice,
   processPendingInvoices
 };
