@@ -86,6 +86,9 @@ ${monthNames[beginDate.getUTCMonth()]} ${beginDate.getUTCDate()} TO ${monthNames
   const unitPrice = 0.48;
   const amount = invoiceData.total_measure_value * unitPrice;
   
+  // Usar el TaxCodeRef del item de electricidad o el valor por defecto "7" (7% S)
+  const taxCodeValue = electricityItem?.SalesTaxCodeRef?.value || '7';
+  
   const invoiceBody = {
     Line: [{
       DetailType: 'SalesItemLineDetail',
@@ -93,8 +96,11 @@ ${monthNames[beginDate.getUTCMonth()]} ${beginDate.getUTCDate()} TO ${monthNames
       Description: description,
       SalesItemLineDetail: {
         ItemRef: {
-          value: electricityItem?.Id || '1',
-          name: electricityItem?.Name || 'Services'
+          value: electricityItem.Id,
+          name: electricityItem.Name
+        },
+        TaxCodeRef: {
+          value: taxCodeValue
         },
         Qty: invoiceData.total_measure_value,
         UnitPrice: unitPrice
