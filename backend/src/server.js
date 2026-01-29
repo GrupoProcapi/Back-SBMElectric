@@ -20,6 +20,7 @@ const { validationResult } = require('express-validator');
 const { validateCreateUser, validateUpdateUser, validateId, validateDate, validateLogin, validateCreateMeasurer, validateUpdateMeasurer, validateUpdateInvoice, validateCreateMeasurements, validateUpdateMeasurements, validateCreateInvoice } = require('./validationRules');
 const jwt = require('jsonwebtoken');
 const qboRoutes = require('./routes/qboRoutes');
+const qboInvoiceService = require('./services/qboInvoiceService');
 // Api
 const app = express();
 app.use(bodyParser.json());
@@ -651,7 +652,21 @@ app.post('/api/bill', validateCreateInvoice, async (req, res, next) => {
     });
 
     await Promise.all(tokenPromises);
-    res.status(200).json({ message:  "Todas las operaciones se completaron con éxito" });
+    
+    // Enviar facturas pendientes a QuickBooks Online
+    let qboResult = null;
+    try {
+      qboResult = await qboInvoiceService.processPendingInvoices();
+      console.log('Facturas enviadas a QBO:', qboResult);
+    } catch (qboError) {
+      console.error('Error enviando a QBO (las facturas quedaron PENDIENTE):', qboError.message);
+      qboResult = { error: qboError.message };
+    }
+    
+    res.status(200).json({ 
+      message: "Todas las operaciones se completaron con éxito",
+      qbo: qboResult
+    });
 
   } catch (err) {
     res.status(400).json({ message: err.message });
