@@ -146,11 +146,60 @@ const makeApiCall = async (endpoint, method = 'GET', body = null) => {
   return result;
 };
 
+const refreshTokenPreventively = async () => {
+  try {
+    const tokens = await database('qbo_tokens').orderBy('updated_at', 'desc').first();
+    if (!tokens) {
+      console.log('QBO: No hay tokens guardados');
+      return { success: false, message: 'No hay tokens' };
+    }
+    
+    const client = getOAuthClient();
+    client.setToken({
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token,
+      realmId: tokens.realm_id,
+      token_type: 'bearer'
+    });
+    
+    console.log('QBO: Refrescando token preventivamente...');
+    const authResponse = await client.refresh();
+    const newTokens = authResponse.getJson();
+    
+    await saveTokens({
+      realm_id: tokens.realm_id,
+      access_token: newTokens.access_token,
+      refresh_token: newTokens.refresh_token,
+      token_expiry: new Date(Date.now() + newTokens.expires_in * 1000),
+      refresh_token_expiry: new Date(Date.now() + newTokens.x_refresh_token_expires_in * 1000)
+    });
+    
+    console.log('QBO: Token refrescado exitosamente');
+    return { success: true, message: 'Token refrescado' };
+  } catch (error) {
+    console.error('QBO: Error refrescando token preventivamente:', error.message);
+    return { success: false, message: error.message };
+  }
+};
+
+// Refrescar token cada 45 minutos para mantenerlo activo
+const startTokenRefreshInterval = () => {
+  const REFRESH_INTERVAL = 45 * 60 * 1000; // 45 minutos
+  
+  setInterval(async () => {
+    await refreshTokenPreventively();
+  }, REFRESH_INTERVAL);
+  
+  console.log('QBO: Intervalo de refresh de token iniciado (cada 45 min)');
+};
+
 module.exports = {
   getOAuthClient,
   getAuthUri,
   handleCallback,
   getAuthenticatedClient,
   makeApiCall,
-  getBaseUrl
+  getBaseUrl,
+  refreshTokenPreventively,
+  startTokenRefreshInterval
 };

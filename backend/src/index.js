@@ -3,12 +3,21 @@ const app = require("./server");
 // const { appSOAP, service }  = require("./SOAPserver");
 // const { invoiceSOAP, invoiceService }  = require("./invoiceSOAPserver");
 const { port, portSOAP} = require("./config");
+const qboClient = require("./services/qboClient");
 // const soap = require('soap');
 // const fs = require('fs');
 // const path = require('path');
 
 const server = app.listen(port, function() {
   console.log("Webserver is ready");
+  
+  // Iniciar refresh automático de token QBO
+  qboClient.startTokenRefreshInterval();
+  
+  // Refrescar token al iniciar (si existe)
+  qboClient.refreshTokenPreventively().then(result => {
+    console.log('QBO: Estado inicial del token:', result.message);
+  });
 });
 
 // SOAP servers para QuickBooks Desktop - DESACTIVADOS
