@@ -1,29 +1,27 @@
 const app = require("./server");
-const { appSOAP, service }  = require("./SOAPserver");
-const { invoiceSOAP, invoiceService }  = require("./invoiceSOAPserver");
+// SOAP servers desactivados - Ahora usamos QuickBooks Online
+// const { appSOAP, service }  = require("./SOAPserver");
+// const { invoiceSOAP, invoiceService }  = require("./invoiceSOAPserver");
 const { port, portSOAP} = require("./config");
-const soap = require('soap');
-const fs = require('fs');
-const path = require('path');
+// const soap = require('soap');
+// const fs = require('fs');
+// const path = require('path');
 
 const server = app.listen(port, function() {
   console.log("Webserver is ready");
 });
 
-const wsdlPath = path.join(__dirname, 'qbwebconnector.wsdl');
-
-const xml = fs.readFileSync(wsdlPath, 'utf8');
-
-const serverSOAP = appSOAP.listen(portSOAP, () => {
-  console.log(`SOAP server listening on port ${portSOAP}`);
-});
-
-const serverInvoiceSOAP = invoiceSOAP.listen(4748, () => {
-  console.log(`SOAP server listening on port 4748`);
-});
-
-soap.listen(appSOAP, '/qbwc', service, xml);
-soap.listen(invoiceSOAP, '/invoice', invoiceService, xml);
+// SOAP servers para QuickBooks Desktop - DESACTIVADOS
+// const wsdlPath = path.join(__dirname, 'qbwebconnector.wsdl');
+// const xml = fs.readFileSync(wsdlPath, 'utf8');
+// const serverSOAP = appSOAP.listen(portSOAP, () => {
+//   console.log(`SOAP server listening on port ${portSOAP}`);
+// });
+// const serverInvoiceSOAP = invoiceSOAP.listen(4748, () => {
+//   console.log(`SOAP server listening on port 4748`);
+// });
+// soap.listen(appSOAP, '/qbwc', service, xml);
+// soap.listen(invoiceSOAP, '/invoice', invoiceService, xml);
 
 //
 // need this in docker container to properly exit since node doesn't handle SIGINT/SIGTERM
