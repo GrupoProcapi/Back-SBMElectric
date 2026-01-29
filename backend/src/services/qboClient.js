@@ -118,7 +118,20 @@ const makeApiCall = async (endpoint, method = 'GET', body = null) => {
   }
   
   const response = await client.makeApiCall(options);
-  return response.getJson();
+  
+  if (response.getJson && typeof response.getJson === 'function') {
+    return response.getJson();
+  }
+  
+  if (response.json && typeof response.json === 'object') {
+    return response.json;
+  }
+  
+  if (typeof response.body === 'string') {
+    return JSON.parse(response.body);
+  }
+  
+  return response;
 };
 
 module.exports = {
