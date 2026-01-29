@@ -19,10 +19,13 @@ const apiKeyValidator = require("./apiKeyValidator");
 const { validationResult } = require('express-validator');
 const { validateCreateUser, validateUpdateUser, validateId, validateDate, validateLogin, validateCreateMeasurer, validateUpdateMeasurer, validateUpdateInvoice, validateCreateMeasurements, validateUpdateMeasurements, validateCreateInvoice } = require('./validationRules');
 const jwt = require('jsonwebtoken');
+const qboRoutes = require('./routes/qboRoutes');
 // Api
 const app = express();
 app.use(bodyParser.json());
 app.use(morgan("common"));
+
+app.use('/api/qbo', qboRoutes);
 
 const isEmpty = (str) => {
   return str === null || str === undefined || str.trim() === '';
