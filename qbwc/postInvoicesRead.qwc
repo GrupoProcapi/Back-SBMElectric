@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<QBWCXML>
+  <AppName>ReadInvoices sbm-api</AppName>
+  <AppID>sbm-invoice-reader</AppID>
+  <AppURL>https://electric-api.shelterbaymarina.com/invoicesread</AppURL>
+  <CertURL>https://electric-api.shelterbaymarina.com/</CertURL>
+  <AppDescription>Relee facturas existentes en QuickBooks para reconstruir el historico de lecturas de medidores</AppDescription>
+  <AppSupport>https://electric-api.shelterbaymarina.com/</AppSupport>
+  <UserName>production</UserName>
+  <OwnerID>{B1B94190-8EB8-4e38-B19D-8F27372140C5}</OwnerID>
+  <FileID>{BFA42F78-5BB6-4485-B43E-9FB5CFD3AAB3}</FileID>
+  <QBType>QBFS</QBType>
+</QBWCXML>

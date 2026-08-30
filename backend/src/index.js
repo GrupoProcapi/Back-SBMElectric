@@ -1,6 +1,7 @@
 const app = require("./server");
 const { appSOAP, service }  = require("./SOAPserver");
 const { invoiceSOAP, invoiceService }  = require("./invoiceSOAPserver");
+const { invoiceQuerySOAP, invoiceQueryService }  = require("./invoiceQuerySOAPserver");
 const { port, portSOAP} = require("./config");
 const soap = require('soap');
 const fs = require('fs');
@@ -22,8 +23,13 @@ const serverInvoiceSOAP = invoiceSOAP.listen(4748, () => {
   console.log(`SOAP server listening on port 4748`);
 });
 
+const serverInvoiceQuerySOAP = invoiceQuerySOAP.listen(4749, () => {
+  console.log(`SOAP server listening on port 4749`);
+});
+
 soap.listen(appSOAP, '/qbwc', service, xml);
 soap.listen(invoiceSOAP, '/invoice', invoiceService, xml);
+soap.listen(invoiceQuerySOAP, '/invoicesread', invoiceQueryService, xml);
 
 //
 // need this in docker container to properly exit since node doesn't handle SIGINT/SIGTERM
