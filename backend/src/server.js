@@ -137,6 +137,26 @@ app.get("/", function(req, res, next) {
   res.json({ application: "SBM Measurer API", version: 1 })
 });
 
+//Log In
+// Must be registered BEFORE apiKeyValidator: the client does not have an
+// api-key yet at login time, so this endpoint has to remain public.
+app.post('/api/login', validateLogin, async (req, res, next) => {
+  const errors = validationResult(req);
+  if(!errors.isEmpty())
+    {
+      return res.status(400).json({ errors: errors.array() });
+    }
+  try {
+    const newUser = req.body;
+    database.raw(`SELECT id, username, role FROM users WHERE username = "${newUser.username}" AND password = "${btoa(newUser.password)}"`)
+    .then(([rows]) => rows[0])
+    .then((row) => row ? res.json({ message: row }) : res.status(404).json({ message: 'Wrong username or password' }))
+    .catch(next);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
 app.use(apiKeyValidator);
 
 app.get("/schema", function(req, res, next) {
@@ -277,25 +297,7 @@ app.delete('/api/users/:id', validateId, async (req, res, next) => {
   }
 });
 
-//Log In
-app.post('/api/login', validateLogin, async (req, res, next) => {
-  const errors = validationResult(req);
-  if(!errors.isEmpty())
-    {
-      return res.status(400).json({ errors: errors.array() });
-    }
-  try {
-    const newUser = req.body;
-    database.raw(`SELECT id, username, role FROM users WHERE username = "${newUser.username}" AND password = "${btoa(newUser.password)}"`)
-    .then(([rows]) => rows[0])
-    .then((row) => row ? res.json({ message: row }) : res.status(404).json({ message: 'Wrong username or password' }))
-    .catch(next);
-  } catch (err) {
-    res.status(400).json({ message: err.message });
-  }
-});
-
-// Measures  Routes 
+// Measures  Routes
 // Create Measurer
 app.post('/api/measurers', validateCreateMeasurer, async (req, res, next) => {
   const errors = validationResult(req);
