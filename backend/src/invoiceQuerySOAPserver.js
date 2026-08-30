@@ -68,6 +68,15 @@ const service = {
                 <ToTxnDate>${toTxnDate}</ToTxnDate>
               </TxnDateRangeFilter>
               <IncludeLineItems>true</IncludeLineItems>
+              <IncludeRetElement>TxnID</IncludeRetElement>
+              <IncludeRetElement>RefNumber</IncludeRetElement>
+              <IncludeRetElement>TxnDate</IncludeRetElement>
+              <IncludeRetElement>CustomerRef</IncludeRetElement>
+              <IncludeRetElement>Memo</IncludeRetElement>
+              <IncludeRetElement>TxnLineID</IncludeRetElement>
+              <IncludeRetElement>Desc</IncludeRetElement>
+              <IncludeRetElement>Amount</IncludeRetElement>
+              <IncludeRetElement>ItemRef</IncludeRetElement>
             </InvoiceQueryRq>
           </QBXMLMsgsRq>
         </QBXML>`;
@@ -136,11 +145,16 @@ const service = {
                 }
                 const lineDesc = lineRet.Desc ? lineRet.Desc[0] : null;
                 const lineAmount = lineRet.Amount ? lineRet.Amount[0] : null;
+                const itemRef = lineRet.ItemRef && lineRet.ItemRef[0]
+                  ? (lineRet.ItemRef[0].FullName
+                      ? lineRet.ItemRef[0].FullName[0]
+                      : (lineRet.ItemRef[0].ListID ? lineRet.ItemRef[0].ListID[0] : null))
+                  : null;
 
                 const upsertPromise = database.raw(
                   `INSERT INTO sbmqb_invoices_read
-                    (sbmqb_ref_number, sbmqb_txn_line_id, sbmqb_customer_ref, txn_date, memo, line_desc, line_amount)
-                   VALUES (?, ?, ?, ?, ?, ?, ?)
+                    (sbmqb_ref_number, sbmqb_txn_line_id, sbmqb_customer_ref, txn_date, memo, line_desc, line_amount, item_ref)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                    ON DUPLICATE KEY UPDATE
                     sbmqb_ref_number = VALUES(sbmqb_ref_number),
                     sbmqb_customer_ref = VALUES(sbmqb_customer_ref),
@@ -148,8 +162,9 @@ const service = {
                     memo = VALUES(memo),
                     line_desc = VALUES(line_desc),
                     line_amount = VALUES(line_amount),
+                    item_ref = VALUES(item_ref),
                     synced_at = CURRENT_TIMESTAMP`,
-                  [refNumber, txnLineId, customerRef, txnDate, memo, lineDesc, lineAmount]
+                  [refNumber, txnLineId, customerRef, txnDate, memo, lineDesc, lineAmount, itemRef]
                 )
                 .then(() => console.log({ message: 'sbmqb_invoices_read upserted. TxnLineID:' + txnLineId }))
                 .catch((error) => console.log({ message: 'Error insertando TxnLineID ' + txnLineId, error: error.message }));
