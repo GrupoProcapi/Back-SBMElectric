@@ -73,6 +73,7 @@ const service = {
               <IncludeRetElement>TxnDate</IncludeRetElement>
               <IncludeRetElement>CustomerRef</IncludeRetElement>
               <IncludeRetElement>Memo</IncludeRetElement>
+              <IncludeRetElement>InvoiceLineRet</IncludeRetElement>
               <IncludeRetElement>TxnLineID</IncludeRetElement>
               <IncludeRetElement>Desc</IncludeRetElement>
               <IncludeRetElement>Amount</IncludeRetElement>
