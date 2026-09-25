@@ -5,9 +5,96 @@ const database = require('../database');
 
 const MONTH_NAMES = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
 
-const getQBOItems = async () => {
-  const response = await qboClient.makeApiCall('/query?query=SELECT * FROM Item WHERE Active = true');
-  return response.QueryResponse?.Item || [];
+// --- getQBOItems: paginación + filtro opcional por nombre -----------------
+// Antes traía solo la primera tanda de resultados (default de QBO sin
+// STARTPOSITION/MAXRESULTS, ~100 registros). El catálogo real tiene cientos
+// de items, así que items como "Electricidad" podían quedar fuera de esa
+// primera página. Mismo patrón de paginación que getQBOCustomers() en
+// qboCustomerService.js (STARTPOSITION/MAXRESULTS 1000 en loop).
+const ITEM_PAGE_SIZE = 1000;
+// Safety guard contra un loop descontrolado si QBO devolviera siempre una
+// página llena. El catálogo real es de a lo sumo unos cientos de items; 200
+// páginas (200,000 items) es un techo muy por encima de cualquier volumen
+// realista, igual que el guard equivalente en qboCustomerService.js.
+const ITEM_MAX_PAGES = 200;
+
+// Solo letras, números, espacios y guiones. Esto es lo que evita que alguien
+// inyecte sintaxis de query de QBO (ej. cerrar el literal del LIKE con un
+// `'` y agregar cláusulas propias) a través del query param `?search=`.
+const ITEM_SEARCH_ALLOWED_CHARS = /^[A-Za-z0-9 -]+$/;
+
+class InvalidItemSearchError extends Error {
+  constructor(message = 'Parámetro "search" inválido: solo se permiten letras, números, espacios y guiones.') {
+    super(message);
+    this.name = 'InvalidItemSearchError';
+  }
+}
+
+// Pura: valida y normaliza `search`. undefined/null/'' (tras trim) => sin
+// filtro (undefined). Lanza InvalidItemSearchError ante cualquier caracter
+// fuera de la whitelist -- nunca deja pasar el string crudo sin validar.
+const sanitizeItemSearch = (search) => {
+  if (search === undefined || search === null) {
+    return undefined;
+  }
+
+  if (typeof search !== 'string') {
+    throw new InvalidItemSearchError();
+  }
+
+  const trimmed = search.trim();
+  if (trimmed === '') {
+    return undefined;
+  }
+
+  if (!ITEM_SEARCH_ALLOWED_CHARS.test(trimmed)) {
+    throw new InvalidItemSearchError();
+  }
+
+  return trimmed;
+};
+
+// Pura: arma la query de QBO para una página dada. `search` DEBE venir ya
+// sanitizado (ver sanitizeItemSearch) -- este builder no vuelve a validar,
+// asume que el caller ya falló rápido ante un input inválido.
+const buildItemsQuery = (sanitizedSearch, { startPosition, maxResults }) => {
+  let query = 'SELECT * FROM Item WHERE Active = true';
+
+  if (sanitizedSearch) {
+    query += ` AND Name LIKE '%${sanitizedSearch}%'`;
+  }
+
+  return `${query} STARTPOSITION ${startPosition} MAXRESULTS ${maxResults}`;
+};
+
+const getQBOItems = async ({ search, client = qboClient } = {}) => {
+  // Falla rápido ante un `search` inválido, antes de tocar la red.
+  const sanitizedSearch = sanitizeItemSearch(search);
+
+  const items = [];
+  let startPosition = 1;
+  let pageLength = 0;
+  let pageCount = 0;
+
+  do {
+    if (pageCount >= ITEM_MAX_PAGES) {
+      throw new Error(
+        `QBO item pagination exceeded the safety limit of ${ITEM_MAX_PAGES} pages ` +
+          `(${ITEM_MAX_PAGES * ITEM_PAGE_SIZE} records). Aborting instead of looping indefinitely.`
+      );
+    }
+
+    const query = buildItemsQuery(sanitizedSearch, { startPosition, maxResults: ITEM_PAGE_SIZE });
+    const response = await client.makeApiCall(`/query?query=${query}`);
+    const page = response.QueryResponse?.Item || [];
+
+    items.push(...page);
+    pageLength = page.length;
+    startPosition += ITEM_PAGE_SIZE;
+    pageCount += 1;
+  } while (pageLength === ITEM_PAGE_SIZE);
+
+  return items;
 };
 
 const getQBOInvoices = async (maxResults = 100) => {
@@ -238,10 +325,15 @@ module.exports = {
   getQBOInvoices,
   createInvoice,
   processPendingInvoices,
+  InvalidItemSearchError,
   __testables: {
     buildDescription,
     buildInvoiceBody,
     buildRequestId,
-    previewInvoice
+    previewInvoice,
+    sanitizeItemSearch,
+    buildItemsQuery,
+    ITEM_PAGE_SIZE,
+    ITEM_MAX_PAGES
   }
 };

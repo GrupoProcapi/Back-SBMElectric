@@ -185,11 +185,15 @@ router.post('/invoices/process', async (req, res) => {
 
 router.get('/items', async (req, res) => {
   try {
-    const items = await qboInvoiceService.getQBOItems();
+    const { search } = req.query;
+    // getQBOItems pagina internamente (STARTPOSITION/MAXRESULTS 1000 en loop)
+    // y valida `search` antes de tocar la red -- ver qboInvoiceService.js.
+    const items = await qboInvoiceService.getQBOItems({ search });
     res.json({ message: items });
   } catch (error) {
     console.error('Error obteniendo items QBO:', error.message);
-    res.status(500).json({ error: error.message });
+    const isInvalidSearch = error instanceof qboInvoiceService.InvalidItemSearchError;
+    res.status(isInvalidSearch ? 400 : 500).json({ error: error.message });
   }
 });
 

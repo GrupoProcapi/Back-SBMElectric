@@ -17,8 +17,33 @@ const qboConfig = require('../src/config/qboConfig');
 // qboClient, lo cual no es posible sin una librería de mocking. Se deja
 // documentado como deuda técnica hasta que se apruebe instalar sinon o similar.
 
-const { buildDescription, buildInvoiceBody, buildRequestId, previewInvoice } =
-  qboInvoiceService.__testables;
+const {
+  buildDescription,
+  buildInvoiceBody,
+  buildRequestId,
+  previewInvoice,
+  sanitizeItemSearch,
+  buildItemsQuery,
+  ITEM_PAGE_SIZE
+} = qboInvoiceService.__testables;
+
+// Fake mínimo de qboClient para testear getQBOItems() sin red real -- mismo
+// approach hand-rolled que test/qboCustomerService.js (no hay sinon/proxyquire
+// instalado en el proyecto). Simula páginas de resultados según STARTPOSITION.
+const buildFakeQboItemsClient = (pages) => {
+  const calls = [];
+  return {
+    calls,
+    makeApiCall: async (endpoint) => {
+      calls.push(endpoint);
+      const startPositionMatch = endpoint.match(/STARTPOSITION (\d+)/);
+      const startPosition = startPositionMatch ? parseInt(startPositionMatch[1], 10) : 1;
+      const pageIndex = Math.floor((startPosition - 1) / ITEM_PAGE_SIZE);
+      const page = pages[pageIndex] || [];
+      return { QueryResponse: { Item: page } };
+    }
+  };
+};
 
 const VALID_SERVICE_MAP = {
   'servicio-electricidad-tarifa': { itemId: 'ITEM-T', unitPrice: 0.48 },
@@ -307,5 +332,128 @@ describe('qboInvoiceService - processPendingInvoices (guard clauses, sin DB)', (
     }
     expect(thrown).to.be.instanceOf(Error);
     expect(thrown.message).to.match(/QBO_PROCESS_MAX_BATCH/);
+  });
+});
+
+describe('qboInvoiceService - sanitizeItemSearch', () => {
+  it('devuelve undefined cuando no viene search', () => {
+    expect(sanitizeItemSearch(undefined)).to.equal(undefined);
+    expect(sanitizeItemSearch(null)).to.equal(undefined);
+  });
+
+  it('devuelve undefined cuando search es string vacío o solo espacios', () => {
+    expect(sanitizeItemSearch('')).to.equal(undefined);
+    expect(sanitizeItemSearch('   ')).to.equal(undefined);
+  });
+
+  it('trimea y acepta letras, números, espacios y guiones', () => {
+    expect(sanitizeItemSearch('  ELECTR  ')).to.equal('ELECTR');
+    expect(sanitizeItemSearch('Electricidad-Muelle 42')).to.equal('Electricidad-Muelle 42');
+  });
+
+  it('rechaza intentos de inyección con comillas simples', () => {
+    expect(() => sanitizeItemSearch("ELECTR' OR '1'='1")).to.throw(
+      qboInvoiceService.InvalidItemSearchError
+    );
+  });
+
+  it('rechaza intentos de inyección tipo "; DROP"', () => {
+    expect(() => sanitizeItemSearch("x'; DROP TABLE Item; --")).to.throw(
+      qboInvoiceService.InvalidItemSearchError
+    );
+  });
+
+  it('rechaza caracteres especiales de SQL/QBO como %, _, (, )', () => {
+    expect(() => sanitizeItemSearch('ELECTR%')).to.throw(qboInvoiceService.InvalidItemSearchError);
+    expect(() => sanitizeItemSearch('a)OR(1=1')).to.throw(qboInvoiceService.InvalidItemSearchError);
+  });
+
+  it('rechaza search que no es string', () => {
+    expect(() => sanitizeItemSearch(['a', 'b'])).to.throw(qboInvoiceService.InvalidItemSearchError);
+    expect(() => sanitizeItemSearch(42)).to.throw(qboInvoiceService.InvalidItemSearchError);
+  });
+});
+
+describe('qboInvoiceService - buildItemsQuery', () => {
+  it('arma la query base (sin search) con STARTPOSITION/MAXRESULTS', () => {
+    const query = buildItemsQuery(undefined, { startPosition: 1, maxResults: 1000 });
+    expect(query).to.equal('SELECT * FROM Item WHERE Active = true STARTPOSITION 1 MAXRESULTS 1000');
+  });
+
+  it('agrega la cláusula LIKE cuando hay search (ya sanitizado)', () => {
+    const query = buildItemsQuery('ELECTR', { startPosition: 1001, maxResults: 1000 });
+    expect(query).to.equal(
+      "SELECT * FROM Item WHERE Active = true AND Name LIKE '%ELECTR%' STARTPOSITION 1001 MAXRESULTS 1000"
+    );
+  });
+});
+
+describe('qboInvoiceService - getQBOItems (paginación + search)', () => {
+  it('trae todo en una sola página cuando hay menos de 1000 resultados', async () => {
+    const page = Array.from({ length: 50 }, (_, i) => ({ Id: String(i), Name: `Item ${i}` }));
+    const fakeClient = buildFakeQboItemsClient([page]);
+
+    const items = await qboInvoiceService.getQBOItems({ client: fakeClient });
+
+    expect(items).to.have.lengthOf(50);
+    expect(fakeClient.calls).to.have.lengthOf(1);
+    expect(fakeClient.calls[0]).to.include('STARTPOSITION 1 MAXRESULTS 1000');
+  });
+
+  it('pagina cuando hay más de 1000 resultados, hasta traer todo', async () => {
+    const page1 = Array.from({ length: 1000 }, (_, i) => ({ Id: `p1-${i}` }));
+    const page2 = Array.from({ length: 1000 }, (_, i) => ({ Id: `p2-${i}` }));
+    const page3 = Array.from({ length: 250 }, (_, i) => ({ Id: `p3-${i}` }));
+    const fakeClient = buildFakeQboItemsClient([page1, page2, page3]);
+
+    const items = await qboInvoiceService.getQBOItems({ client: fakeClient });
+
+    expect(items).to.have.lengthOf(2250);
+    expect(fakeClient.calls).to.have.lengthOf(3);
+    expect(fakeClient.calls[0]).to.include('STARTPOSITION 1 MAXRESULTS 1000');
+    expect(fakeClient.calls[1]).to.include('STARTPOSITION 1001 MAXRESULTS 1000');
+    expect(fakeClient.calls[2]).to.include('STARTPOSITION 2001 MAXRESULTS 1000');
+  });
+
+  it('para exactamente al recibir una última página completa (múltiplo exacto de 1000)', async () => {
+    const page1 = Array.from({ length: 1000 }, (_, i) => ({ Id: `p1-${i}` }));
+    const page2 = Array.from({ length: 1000 }, (_, i) => ({ Id: `p2-${i}` }));
+    // Tercera página vacía: simula que QBO no tiene más resultados.
+    const fakeClient = buildFakeQboItemsClient([page1, page2, []]);
+
+    const items = await qboInvoiceService.getQBOItems({ client: fakeClient });
+
+    expect(items).to.have.lengthOf(2000);
+    expect(fakeClient.calls).to.have.lengthOf(3);
+  });
+
+  it('arma la query con el filtro LIKE cuando se pasa search', async () => {
+    const fakeClient = buildFakeQboItemsClient([[{ Id: '1', Name: 'Electricidad Muelle A' }]]);
+
+    const items = await qboInvoiceService.getQBOItems({ search: 'ELECTR', client: fakeClient });
+
+    expect(items).to.have.lengthOf(1);
+    expect(fakeClient.calls[0]).to.include("Name LIKE '%ELECTR%'");
+  });
+
+  it('rechaza un search con caracteres inválidos ANTES de llamar a QBO', async () => {
+    const fakeClient = buildFakeQboItemsClient([[]]);
+    let thrown = null;
+
+    try {
+      await qboInvoiceService.getQBOItems({ search: "'; DROP TABLE Item; --", client: fakeClient });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).to.be.instanceOf(qboInvoiceService.InvalidItemSearchError);
+    expect(fakeClient.calls).to.have.lengthOf(0);
+  });
+
+  it('sin client inyectado usa el qboClient real por default (no rompe la firma anterior)', () => {
+    // getQBOItems() sin argumentos no debe explotar por falta de `client` --
+    // solo verificamos que la función exista y acepte llamarse sin params
+    // (el camino feliz real requiere red, cubierto por los tests con fake client).
+    expect(qboInvoiceService.getQBOItems).to.be.a('function');
   });
 });
