@@ -106,6 +106,53 @@ const getQBOItems = async ({ search, client = qboClient } = {}) => {
   return items;
 };
 
+// --- getQBOTerms / getQBOClasses: paginación genérica --------------------
+// Term (formas de pago) y Class (clases de QBO, ej. "MARINA") son entidades
+// de solo lectura sin filtro de búsqueda -- no necesitan la sanitización de
+// `search` que sí requiere Item. Se extrae un helper de paginación genérico
+// en vez de reusar getQBOItems() tal cual para no tocar código ya probado en
+// producción; comparte el mismo patrón (STARTPOSITION/MAXRESULTS 1000 en
+// loop + guard de páginas) que getQBOItems()/getQBOCustomers().
+const paginateQboEntity = async ({
+  entityName,
+  client = qboClient,
+  pageSize = ITEM_PAGE_SIZE,
+  maxPages = ITEM_MAX_PAGES
+} = {}) => {
+  const results = [];
+  let startPosition = 1;
+  let pageLength = 0;
+  let pageCount = 0;
+
+  do {
+    if (pageCount >= maxPages) {
+      throw new Error(
+        `QBO ${entityName} pagination exceeded the safety limit of ${maxPages} pages ` +
+          `(${maxPages * pageSize} records). Aborting instead of looping indefinitely.`
+      );
+    }
+
+    const query = `SELECT * FROM ${entityName} STARTPOSITION ${startPosition} MAXRESULTS ${pageSize}`;
+    // encodeURIComponent obligatorio -- mismo motivo que en getQBOItems (ver
+    // comentario ahí sobre el bug de `%` crudo). Term/Class no llevan LIKE
+    // (no hay `%` en la query hoy), pero se mantiene la misma disciplina para
+    // no reintroducir el bug si en el futuro se agrega un filtro acá.
+    const response = await client.makeApiCall(`/query?query=${encodeURIComponent(query)}`);
+    const page = response.QueryResponse?.[entityName] || [];
+
+    results.push(...page);
+    pageLength = page.length;
+    startPosition += pageSize;
+    pageCount += 1;
+  } while (pageLength === pageSize);
+
+  return results;
+};
+
+const getQBOTerms = async ({ client = qboClient } = {}) => paginateQboEntity({ entityName: 'Term', client });
+
+const getQBOClasses = async ({ client = qboClient } = {}) => paginateQboEntity({ entityName: 'Class', client });
+
 const getQBOInvoices = async (maxResults = 100) => {
   // Mismo motivo que en getQBOItems: encodeURIComponent sobre la query completa
   // antes de mandarla como querystring (ver comentario ahí para el detalle del
@@ -333,6 +380,8 @@ const processPendingInvoices = async ({ invoiceIds, dryRun = true } = {}) => {
 
 module.exports = {
   getQBOItems,
+  getQBOTerms,
+  getQBOClasses,
   getQBOInvoices,
   createInvoice,
   processPendingInvoices,
@@ -344,6 +393,7 @@ module.exports = {
     previewInvoice,
     sanitizeItemSearch,
     buildItemsQuery,
+    paginateQboEntity,
     ITEM_PAGE_SIZE,
     ITEM_MAX_PAGES
   }

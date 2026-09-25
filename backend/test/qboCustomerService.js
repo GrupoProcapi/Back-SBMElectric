@@ -10,18 +10,25 @@ const { createQboCustomerService } = require('../src/services/qboCustomerService
 // service uses from qboClient/database.
 // ---------------------------------------------------------------------------
 
+// `endpoint` llega URL-encodeado (getCustomerCount/getQBOCustomers ahora
+// hacen encodeURIComponent(query) -- ver fix del bug de `%` crudo, mismo
+// patrón que getQBOItems() en qboInvoiceService.js). `calls` guarda el
+// endpoint crudo (encodeado) tal cual se le mandaría a QBO; el matching de
+// SELECT COUNT(*)/STARTPOSITION decodea primero para no depender del
+// encoding exacto de espacios/comas.
 const buildFakeQboClient = ({ countResponse, pages }) => {
   const calls = [];
   return {
     calls,
     makeApiCall: async (endpoint) => {
       calls.push(endpoint);
+      const decoded = decodeURIComponent(endpoint);
 
-      if (endpoint.includes('SELECT COUNT(*)')) {
+      if (decoded.includes('SELECT COUNT(*)')) {
         return countResponse;
       }
 
-      const startPositionMatch = endpoint.match(/STARTPOSITION (\d+)/);
+      const startPositionMatch = decoded.match(/STARTPOSITION (\d+)/);
       const startPosition = startPositionMatch ? parseInt(startPositionMatch[1], 10) : 1;
       const pageIndex = Math.floor((startPosition - 1) / 1000);
       const page = pages[pageIndex] || [];
@@ -172,9 +179,9 @@ describe('qboCustomerService (factory + matching)', () => {
 
       expect(customers).to.have.lengthOf(1234);
       expect(fakeQboClient.calls).to.have.lengthOf(2);
-      expect(fakeQboClient.calls[0]).to.include('STARTPOSITION 1 MAXRESULTS 1000');
-      expect(fakeQboClient.calls[1]).to.include('STARTPOSITION 1001 MAXRESULTS 1000');
-      expect(fakeQboClient.calls[0]).to.include('Active IN (true, false)');
+      expect(decodeURIComponent(fakeQboClient.calls[0])).to.include('STARTPOSITION 1 MAXRESULTS 1000');
+      expect(decodeURIComponent(fakeQboClient.calls[1])).to.include('STARTPOSITION 1001 MAXRESULTS 1000');
+      expect(decodeURIComponent(fakeQboClient.calls[0])).to.include('Active IN (true, false)');
     });
 
     it('uses Active = true when includeInactive is false', async () => {
@@ -190,7 +197,7 @@ describe('qboCustomerService (factory + matching)', () => {
 
       await getQBOCustomers({ includeInactive: false });
 
-      expect(fakeQboClient.calls[0]).to.include('Active = true');
+      expect(decodeURIComponent(fakeQboClient.calls[0])).to.include('Active = true');
     });
 
     it('stops after a single page when it returns fewer than MAXRESULTS results', async () => {

@@ -58,7 +58,13 @@ const matchCustomer = (qboCustomer, localCustomers) => {
 const createQboCustomerService = ({ qboClient = defaultQboClient, database = defaultDatabase } = {}) => {
   const getCustomerCount = async ({ includeInactive = false } = {}) => {
     const query = `SELECT COUNT(*) FROM Customer WHERE ${buildActiveClause(includeInactive)}`;
-    const response = await qboClient.makeApiCall(`/query?query=${query}`);
+    // encodeURIComponent es OBLIGATORIO acá: mismo bug que en getQBOItems()
+    // (ver comentario en qboInvoiceService.js) -- el WHATWG URL parser usado
+    // por axios dentro de intuit-oauth NUNCA encodea un `%` crudo, lo que
+    // rompería la query si en el futuro `buildActiveClause` u otro filtro
+    // agrega un LIKE. Se mantiene la misma disciplina aunque hoy esta query
+    // no tenga `%` (solo espacios/paréntesis, que sí encodea el parser).
+    const response = await qboClient.makeApiCall(`/query?query=${encodeURIComponent(query)}`);
     const totalCount = response.QueryResponse?.totalCount;
 
     if (typeof totalCount !== 'number') {
@@ -85,7 +91,9 @@ const createQboCustomerService = ({ qboClient = defaultQboClient, database = def
       const query =
         `SELECT * FROM Customer WHERE ${buildActiveClause(includeInactive)} ` +
         `STARTPOSITION ${startPosition} MAXRESULTS ${PAGE_SIZE}`;
-      const response = await qboClient.makeApiCall(`/query?query=${query}`);
+      // encodeURIComponent obligatorio -- mismo motivo que en getCustomerCount()
+      // de acá arriba y en getQBOItems() (qboInvoiceService.js).
+      const response = await qboClient.makeApiCall(`/query?query=${encodeURIComponent(query)}`);
       const page = response.QueryResponse?.Customer || [];
 
       customers.push(...page);

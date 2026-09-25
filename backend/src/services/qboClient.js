@@ -253,6 +253,22 @@ const getBaseUrl = () => {
     : 'https://sandbox-quickbooks.api.intuit.com';
 };
 
+// Versión estable actual de la API v3 de QBO. Se fija acá, en un único punto
+// centralizado, para que TODAS las llamadas (query, invoice, customer, etc.)
+// viajen con el mismo `minorversion` sin tener que agregarlo por separado en
+// cada servicio consumidor (qboCustomerService.js, qboInvoiceService.js).
+const QBO_MINOR_VERSION = '65';
+
+// Pura: agrega `minorversion` al path que ya armó el caller, sin asumir nada
+// sobre su contenido -- si `path` ya trae un `?` (ej. `/query?query=...`,
+// donde `query` puede venir con su propio encodeURIComponent aplicado), se
+// concatena con `&`; si no trae `?` (ej. `/invoice`), se concatena con `?`.
+// Expuesta en __testables para poder probarla sin red/DB (ver __testables).
+const appendMinorVersion = (path) => {
+  const separator = path.includes('?') ? '&' : '?';
+  return `${path}${separator}minorversion=${QBO_MINOR_VERSION}`;
+};
+
 /**
  * Punto único de entrada a la API de QuickBooks Online.
  * TODAS las escrituras (POST/PUT) pasan por acá y quedan sujetas al kill switch
@@ -265,7 +281,7 @@ const request = async (method, path, body = null, { requestId } = {}) => {
   assertWriteAllowed(httpMethod, path, id);
 
   const { client, realmId } = await getAuthenticatedClient();
-  const url = `${getBaseUrl()}/v3/company/${realmId}${path}`;
+  const url = `${getBaseUrl()}/v3/company/${realmId}${appendMinorVersion(path)}`;
 
   console.log(`QBO API Call [${id}]: ${httpMethod} ${url}`);
   if (body) {
@@ -375,6 +391,8 @@ module.exports = {
     extractIntuitErrorMessage,
     buildRotatedTokenData,
     getActiveTokenRow,
-    buildClientTokenParams
+    buildClientTokenParams,
+    appendMinorVersion,
+    QBO_MINOR_VERSION
   }
 };

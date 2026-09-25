@@ -24,6 +24,7 @@ const {
   previewInvoice,
   sanitizeItemSearch,
   buildItemsQuery,
+  paginateQboEntity,
   ITEM_PAGE_SIZE
 } = qboInvoiceService.__testables;
 
@@ -467,5 +468,126 @@ describe('qboInvoiceService - getQBOItems (paginación + search)', () => {
     // solo verificamos que la función exista y acepte llamarse sin params
     // (el camino feliz real requiere red, cubierto por los tests con fake client).
     expect(qboInvoiceService.getQBOItems).to.be.a('function');
+  });
+});
+
+// Fake mínimo de qboClient para testear paginateQboEntity()/getQBOTerms()/
+// getQBOClasses() sin red real -- mismo approach que buildFakeQboItemsClient,
+// parametrizado por `entityName` (Term/Class) en vez de Item.
+const buildFakeQboEntityClient = (entityName, pages) => {
+  const calls = [];
+  return {
+    calls,
+    makeApiCall: async (endpoint) => {
+      calls.push(endpoint);
+      const decoded = decodeURIComponent(endpoint);
+      const startPositionMatch = decoded.match(/STARTPOSITION (\d+)/);
+      const startPosition = startPositionMatch ? parseInt(startPositionMatch[1], 10) : 1;
+      const pageIndex = Math.floor((startPosition - 1) / ITEM_PAGE_SIZE);
+      const page = pages[pageIndex] || [];
+      return { QueryResponse: { [entityName]: page } };
+    }
+  };
+};
+
+describe('qboInvoiceService - paginateQboEntity (helper compartido por getQBOTerms/getQBOClasses)', () => {
+  it('arma la query SELECT * FROM {entityName} con STARTPOSITION/MAXRESULTS, sin filtro LIKE', async () => {
+    const fakeClient = buildFakeQboEntityClient('Term', [[{ Id: '1', Name: 'Net 30' }]]);
+
+    const results = await paginateQboEntity({ entityName: 'Term', client: fakeClient });
+
+    expect(results).to.deep.equal([{ Id: '1', Name: 'Net 30' }]);
+    expect(decodeURIComponent(fakeClient.calls[0])).to.equal(
+      '/query?query=SELECT * FROM Term STARTPOSITION 1 MAXRESULTS 1000'
+    );
+  });
+
+  it('pagina cuando hay más de 1000 resultados, hasta traer todo', async () => {
+    const page1 = Array.from({ length: 1000 }, (_, i) => ({ Id: `p1-${i}` }));
+    const page2 = Array.from({ length: 250 }, (_, i) => ({ Id: `p2-${i}` }));
+    const fakeClient = buildFakeQboEntityClient('Class', [page1, page2]);
+
+    const results = await paginateQboEntity({ entityName: 'Class', client: fakeClient });
+
+    expect(results).to.have.lengthOf(1250);
+    expect(fakeClient.calls).to.have.lengthOf(2);
+    expect(decodeURIComponent(fakeClient.calls[1])).to.include('STARTPOSITION 1001 MAXRESULTS 1000');
+  });
+
+  it('para exactamente al recibir una última página completa (múltiplo exacto de 1000)', async () => {
+    const page1 = Array.from({ length: 1000 }, (_, i) => ({ Id: `p1-${i}` }));
+    const fakeClient = buildFakeQboEntityClient('Term', [page1, []]);
+
+    const results = await paginateQboEntity({ entityName: 'Term', client: fakeClient });
+
+    expect(results).to.have.lengthOf(1000);
+    expect(fakeClient.calls).to.have.lengthOf(2);
+  });
+
+  it('respeta el guard de páginas (maxPages) para no loopear indefinidamente', async () => {
+    // Cada página viene llena (=pageSize), así que sin el guard loopearía para siempre.
+    const fullPage = Array.from({ length: 10 }, (_, i) => ({ Id: `x-${i}` }));
+    const client = {
+      calls: [],
+      makeApiCall: async function (endpoint) {
+        this.calls.push(endpoint);
+        return { QueryResponse: { Term: fullPage } };
+      }
+    };
+
+    let thrown = null;
+    try {
+      await paginateQboEntity({ entityName: 'Term', client, pageSize: 10, maxPages: 3 });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).to.be.instanceOf(Error);
+    expect(thrown.message).to.match(/safety limit of 3 pages/);
+    expect(client.calls).to.have.lengthOf(3);
+  });
+});
+
+describe('qboInvoiceService - getQBOTerms', () => {
+  it('devuelve los términos de pago (Term) paginados', async () => {
+    const terms = [
+      { Id: '1', Name: 'Net 15' },
+      { Id: '2', Name: 'Net 30' }
+    ];
+    const fakeClient = buildFakeQboEntityClient('Term', [terms]);
+
+    const result = await qboInvoiceService.getQBOTerms({ client: fakeClient });
+
+    expect(result).to.deep.equal(terms);
+    expect(decodeURIComponent(fakeClient.calls[0])).to.include('SELECT * FROM Term');
+  });
+
+  it('sin client inyectado usa el qboClient real por default (no rompe la firma)', () => {
+    expect(qboInvoiceService.getQBOTerms).to.be.a('function');
+  });
+});
+
+describe('qboInvoiceService - getQBOClasses', () => {
+  it('devuelve las clases (Class) paginadas -- incluye MARINA entre las 7 clases reales', async () => {
+    const classes = [
+      { Id: '1', Name: 'ADMINISTRACION' },
+      { Id: '2', Name: 'CHANDLERY' },
+      { Id: '3', Name: 'COMBUSTIBLE' },
+      { Id: '4', Name: 'MANTENIMIENTO' },
+      { Id: '5', Name: 'MARINA' },
+      { Id: '6', Name: 'SAIL LOFT' },
+      { Id: '7', Name: 'YARD' }
+    ];
+    const fakeClient = buildFakeQboEntityClient('Class', [classes]);
+
+    const result = await qboInvoiceService.getQBOClasses({ client: fakeClient });
+
+    expect(result).to.deep.equal(classes);
+    expect(result.find((c) => c.Name === 'MARINA').Id).to.equal('5');
+    expect(decodeURIComponent(fakeClient.calls[0])).to.include('SELECT * FROM Class');
+  });
+
+  it('sin client inyectado usa el qboClient real por default (no rompe la firma)', () => {
+    expect(qboInvoiceService.getQBOClasses).to.be.a('function');
   });
 });

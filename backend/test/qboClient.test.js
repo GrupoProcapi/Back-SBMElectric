@@ -155,6 +155,29 @@ describe('qboClient - extractIntuitErrorMessage', () => {
   });
 });
 
+// TAREA: minorversion=65 centralizado en request() -- ver comentario en
+// qboClient.js sobre por qué se agrega en un único punto (appendMinorVersion)
+// en vez de en cada servicio consumidor. Se testea la función pura extraída
+// en vez del camino completo de request() porque este último requiere
+// getAuthenticatedClient() (DB real + red a QBO), no disponible en un test
+// unitario sin sinon/proxyquire (mismo gap documentado en el resto del archivo).
+describe('qboClient - appendMinorVersion (minorversion centralizado en request())', () => {
+  const { appendMinorVersion, QBO_MINOR_VERSION } = qboClient.__testables;
+
+  it('agrega minorversion con "?" cuando el path no tiene querystring previa', () => {
+    expect(appendMinorVersion('/invoice')).to.equal(`/invoice?minorversion=${QBO_MINOR_VERSION}`);
+  });
+
+  it('agrega minorversion con "&" cuando el path ya trae una query (ej. /query?query=...)', () => {
+    const path = '/query?query=SELECT%20%2A%20FROM%20Item%20WHERE%20Active%20%3D%20true';
+    expect(appendMinorVersion(path)).to.equal(`${path}&minorversion=${QBO_MINOR_VERSION}`);
+  });
+
+  it('usa la versión "65" como valor estable', () => {
+    expect(QBO_MINOR_VERSION).to.equal('65');
+  });
+});
+
 describe('qboClient - isSdkLoggingEnabled (kill switch del logging interno de intuit-oauth)', () => {
   const { isSdkLoggingEnabled } = qboClient.__testables;
   const ORIGINAL_ENV = process.env.QBO_SDK_LOGGING;

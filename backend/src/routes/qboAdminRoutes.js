@@ -207,4 +207,31 @@ router.get('/invoices', async (req, res) => {
   }
 });
 
+// --- Terms & Classes (catálogos de solo lectura) --------------------------
+
+// GET /api/qbo/terms — términos de pago (Term) de QBO. Sin filtro de búsqueda,
+// pagina internamente igual que /items (STARTPOSITION/MAXRESULTS 1000 en loop).
+router.get('/terms', async (req, res) => {
+  try {
+    const terms = await qboInvoiceService.getQBOTerms();
+    res.json({ message: terms });
+  } catch (error) {
+    console.error('Error obteniendo términos de pago QBO:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/qbo/classes — clases (Class) de QBO. Se usa para confirmar el Id
+// numérico real de "MARINA" (y las otras 6 clases) antes de configurarlo en
+// QBO_CLASS_ID.
+router.get('/classes', async (req, res) => {
+  try {
+    const classes = await qboInvoiceService.getQBOClasses();
+    res.json({ message: classes });
+  } catch (error) {
+    console.error('Error obteniendo clases QBO:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;
