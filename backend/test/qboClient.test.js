@@ -239,3 +239,109 @@ describe('qboClient - buildRotatedTokenData (persistencia atómica del refresh_t
     expect(rotated).to.equal(false);
   });
 });
+
+// NOTA: buildClientTokenParams recalcula expires_in/x_refresh_token_expires_in en
+// segundos restantes reales (ver comentario en qboClient.js sobre el bug de
+// intuit-oauth que defaultea esos campos a 0 si no se los recalcula). Se usa una
+// tolerancia de ±2s en las comparaciones para no ser flaky por el tiempo que toma
+// correr el propio test (Date.now() interno de la función vs. el que arma el fixture).
+describe('qboClient - buildClientTokenParams (recalculo de expiración para intuit-oauth)', () => {
+  const { buildClientTokenParams } = qboClient.__testables;
+  const FALLBACK_REFRESH_TOKEN_TTL_SECONDS = 100 * 24 * 60 * 60;
+  const TOLERANCE_SECONDS = 2;
+
+  it('con token_expiry y refresh_token_expiry en el futuro, devuelve ambos "expires_in" positivos y consistentes con la diferencia real', () => {
+    const tokenExpiresInSeconds = 3600; // 1 hora
+    const refreshExpiresInSeconds = 8726400; // 101 días
+    const tokens = {
+      access_token: 'access-123',
+      refresh_token: 'refresh-123',
+      realm_id: '934145576895981',
+      token_expiry: new Date(Date.now() + tokenExpiresInSeconds * 1000),
+      refresh_token_expiry: new Date(Date.now() + refreshExpiresInSeconds * 1000)
+    };
+
+    const result = buildClientTokenParams(tokens);
+
+    expect(result.expires_in).to.be.a('number').and.be.greaterThan(0);
+    expect(result.expires_in).to.be.closeTo(tokenExpiresInSeconds, TOLERANCE_SECONDS);
+
+    expect(result.x_refresh_token_expires_in).to.be.a('number').and.be.greaterThan(0);
+    expect(result.x_refresh_token_expires_in).to.be.closeTo(refreshExpiresInSeconds, TOLERANCE_SECONDS);
+  });
+
+  it('con token_expiry en el pasado (ya vencido), devuelve expires_in=0 (comportamiento real: cae al fallback de la función, no un negativo)', () => {
+    const tokens = {
+      access_token: 'access-123',
+      refresh_token: 'refresh-123',
+      realm_id: '934145576895981',
+      token_expiry: new Date(Date.now() - 60 * 1000), // vencido hace 1 minuto
+      refresh_token_expiry: new Date(Date.now() + 8726400 * 1000)
+    };
+
+    const result = buildClientTokenParams(tokens);
+
+    expect(result.expires_in).to.equal(0);
+  });
+
+  it('con refresh_token_expiry en el pasado (fecha válida pero vencida), devuelve x_refresh_token_expires_in=0 y NO el fallback de 100 días', () => {
+    const tokens = {
+      access_token: 'access-123',
+      refresh_token: 'refresh-123',
+      realm_id: '934145576895981',
+      token_expiry: new Date(Date.now() + 3600 * 1000),
+      refresh_token_expiry: new Date(Date.now() - 60 * 1000) // vencido hace 1 minuto
+    };
+
+    const result = buildClientTokenParams(tokens);
+
+    expect(result.x_refresh_token_expires_in).to.equal(0);
+    expect(result.x_refresh_token_expires_in).to.not.equal(FALLBACK_REFRESH_TOKEN_TTL_SECONDS);
+  });
+
+  it('con refresh_token_expiry null, aplica el fallback de 100 días', () => {
+    const tokens = {
+      access_token: 'access-123',
+      refresh_token: 'refresh-123',
+      realm_id: '934145576895981',
+      token_expiry: new Date(Date.now() + 3600 * 1000),
+      refresh_token_expiry: null
+    };
+
+    const result = buildClientTokenParams(tokens);
+
+    expect(result.x_refresh_token_expires_in).to.equal(FALLBACK_REFRESH_TOKEN_TTL_SECONDS);
+  });
+
+  it('con refresh_token_expiry undefined, aplica el mismo fallback de 100 días', () => {
+    const tokens = {
+      access_token: 'access-123',
+      refresh_token: 'refresh-123',
+      realm_id: '934145576895981',
+      token_expiry: new Date(Date.now() + 3600 * 1000)
+      // refresh_token_expiry ausente a propósito
+    };
+
+    const result = buildClientTokenParams(tokens);
+
+    expect(result.x_refresh_token_expires_in).to.equal(FALLBACK_REFRESH_TOKEN_TTL_SECONDS);
+  });
+
+  it('incluye access_token, refresh_token, realmId y token_type tal como los recibió, además de los campos de expiración', () => {
+    const tokens = {
+      access_token: 'my-access-token',
+      refresh_token: 'my-refresh-token',
+      realm_id: '934145576895981',
+      token_expiry: new Date(Date.now() + 3600 * 1000),
+      refresh_token_expiry: new Date(Date.now() + 8726400 * 1000)
+    };
+
+    const result = buildClientTokenParams(tokens);
+
+    expect(result.access_token).to.equal('my-access-token');
+    expect(result.refresh_token).to.equal('my-refresh-token');
+    expect(result.realmId).to.equal('934145576895981');
+    expect(result.token_type).to.equal('bearer');
+    expect(result.createdAt).to.be.a('number');
+  });
+});

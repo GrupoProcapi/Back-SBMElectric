@@ -175,6 +175,50 @@ const getActiveTokenRow = async () => {
   return database('qbo_tokens').orderBy('updated_at', 'desc').first();
 };
 
+// Fallback conservador cuando refresh_token_expiry no está seteado en la fila (filas
+// legacy anteriores a esta migración, o datos incompletos). Intuit documenta que los
+// refresh_token viven ~100 días; usamos ese valor para NO reproducir el bug de setear
+// x_refresh_token_expires_in en 0, que hace que intuit-oauth considere el token vencido
+// localmente sin siquiera llamar a la red. La validez REAL la termina decidiendo Intuit
+// en la llamada HTTP, esto solo evita el falso negativo de la validación local del SDK.
+const FALLBACK_REFRESH_TOKEN_TTL_SECONDS = 100 * 24 * 60 * 60;
+
+// La librería `intuit-oauth` valida LOCALMENTE (sin red) si el refresh_token está vigente
+// antes de llamar a Intuit: OAuthClient.prototype.refresh() -> validateToken() ->
+// Token.prototype.isRefreshTokenValid() -> _checkExpiry(this.x_refresh_token_expires_in),
+// que calcula `this.createdAt + x_refresh_token_expires_in*1000 - latency > Date.now()`.
+// Si `setToken()` no recibe `expires_in` / `x_refresh_token_expires_in` / `createdAt`,
+// el constructor de Token los defaultea a 0 / 0 / Date.now(), y esa cuenta SIEMPRE da
+// "vencido" (aunque el refresh_token sea válido en Intuit) -> throw local antes de
+// cualquier request HTTP real. Por eso acá recalculamos ambos "expires_in" en segundos
+// restantes a partir de los timestamps reales guardados en DB, y fijamos createdAt=now
+// para que la cuenta interna de la librería sea consistente con esos "expires_in".
+const buildClientTokenParams = (tokens) => {
+  const now = Date.now();
+
+  const secondsUntil = (expiryDate, fallbackSeconds) => {
+    if (!expiryDate) return fallbackSeconds; // dato ausente -> fallback conservador
+    const remainingMs = new Date(expiryDate).getTime() - now;
+    if (Number.isNaN(remainingMs)) return fallbackSeconds; // fecha inválida -> fallback
+    if (remainingMs <= 0) return 0; // vencido de verdad -> reportarlo como vencido, no enmascarar
+    return Math.floor(remainingMs / 1000);
+  };
+
+  return {
+    access_token: tokens.access_token,
+    refresh_token: tokens.refresh_token,
+    realmId: tokens.realm_id,
+    token_type: 'bearer',
+    // access_token ya lo tratamos como expirado nosotros mismos (chequeo previo con
+    // tokens.token_expiry) antes de llamar a refresh(), así que acá alcanza con no
+    // dejarlo en 0 para no afectar isAccessTokenValid() si algo más de la librería
+    // llegara a consultarlo en este mismo ciclo.
+    expires_in: secondsUntil(tokens.token_expiry, 0),
+    x_refresh_token_expires_in: secondsUntil(tokens.refresh_token_expiry, FALLBACK_REFRESH_TOKEN_TTL_SECONDS),
+    createdAt: now
+  };
+};
+
 const getAuthenticatedClient = async () => {
   const tokens = await getActiveTokenRow();
   if (!tokens) {
@@ -182,12 +226,7 @@ const getAuthenticatedClient = async () => {
   }
 
   const client = getOAuthClient();
-  client.setToken({
-    access_token: tokens.access_token,
-    refresh_token: tokens.refresh_token,
-    realmId: tokens.realm_id,
-    token_type: 'bearer'
-  });
+  client.setToken(buildClientTokenParams(tokens));
 
   if (new Date() > new Date(tokens.token_expiry)) {
     console.log('Token expirado, refrescando...');
@@ -287,12 +326,7 @@ const refreshTokenPreventively = async () => {
     }
 
     const client = getOAuthClient();
-    client.setToken({
-      access_token: tokens.access_token,
-      refresh_token: tokens.refresh_token,
-      realmId: tokens.realm_id,
-      token_type: 'bearer'
-    });
+    client.setToken(buildClientTokenParams(tokens));
 
     console.log('QBO: Refrescando token preventivamente...');
     const authResponse = await client.refresh();
@@ -340,6 +374,7 @@ module.exports = {
     redactSensitive,
     extractIntuitErrorMessage,
     buildRotatedTokenData,
-    getActiveTokenRow
+    getActiveTokenRow,
+    buildClientTokenParams
   }
 };
