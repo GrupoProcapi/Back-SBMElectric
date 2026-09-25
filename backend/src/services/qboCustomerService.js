@@ -3,6 +3,25 @@ const defaultDatabase = require('../database');
 
 const TABLE = 'sbmqb_customers';
 const PAGE_SIZE = 1000;
+
+// Defaults applied to customers created from QBO (Jefe's real workflow: new
+// customers are created directly in QuickBooks Online, never in this app --
+// the Medición screen dropdown only reads from the local sbmqb_customers
+// table, so a QBO-only customer is unusable here until synced in).
+//
+// This exact string (byte for byte, including the `&#183;` HTML-entity
+// artifact) is the same tariff already stored on all 7,552 existing
+// customers. Do NOT "fix" the encoding -- matching the existing data is the
+// point, not correctness of the entity itself.
+const DEFAULT_NEW_CUSTOMER_SERVICE =
+  '4113 &#183; INGRESOS ELECTRIDIDAD:70000:70004-Electricity T. @ 0.48/KW';
+const DEFAULT_NEW_CUSTOMER_CLASS = 'MARINA';
+
+// Synthetic local id for customers that only exist in QBO. sbmqb_id never
+// existed for these customers before this system created it -- this format
+// keeps it unique and lets the rest of the app (customer edit screen,
+// customer picker, etc.), which key off sbmqb_id, work unmodified.
+const buildSyntheticSbmqbId = (qboId) => `QBO-${qboId}`;
 // Safety guard: 7,566 customers today. 200 pages = 200,000 customers, a sane
 // ceiling well above current volume that still stops a runaway loop instead
 // of hammering the QBO API forever if something is wrong with pagination.
@@ -124,9 +143,18 @@ const createQboCustomerService = ({ qboClient = defaultQboClient, database = def
     }
 
     const localCustomers = await database(TABLE).select('sbmqb_id', 'qbo_id', 'full_name', 'name');
+    // Tracks sbmqb_id values that already exist locally, so unmatched QBO
+    // customers pending creation aren't inserted twice if this sync runs
+    // more than once (or somehow sees the same QBO customer twice within a
+    // single run). Updated as rows are created below.
+    const existingSbmqbIds = new Set(localCustomers.map((local) => local.sbmqb_id));
 
     const matched = [];
     const unmatched = [];
+    // Keeps the raw QBO record for each `unmatched` entry, same index, so the
+    // apply step below has every field it needs (CompanyName, Active, etc.)
+    // without bloating the returned `unmatched` array with QBO's raw shape.
+    const unmatchedQboCustomers = [];
     const ambiguous = [];
 
     for (const qboCustomer of qboCustomers) {
@@ -149,15 +177,18 @@ const createQboCustomerService = ({ qboClient = defaultQboClient, database = def
           candidateSbmqbIds: result.candidates.map((candidate) => candidate.sbmqb_id)
         });
       } else {
+        const sbmqbId = buildSyntheticSbmqbId(qboCustomer.Id);
+        const willCreate = !existingSbmqbIds.has(sbmqbId);
         unmatched.push({
           qboId: qboCustomer.Id,
           qboDisplayName: qboCustomer.DisplayName,
-          qboFullyQualifiedName: qboCustomer.FullyQualifiedName
+          qboFullyQualifiedName: qboCustomer.FullyQualifiedName,
+          sbmqbId,
+          willCreate
         });
+        unmatchedQboCustomers.push(qboCustomer);
       }
     }
-
-    const wouldUpdate = matched.filter((match) => match.willUpdate).length;
 
     if (!dryRun) {
       for (const match of matched) {
@@ -165,14 +196,80 @@ const createQboCustomerService = ({ qboClient = defaultQboClient, database = def
           continue;
         }
 
-        // Only ever UPDATE qbo_id on an existing row. Never INSERT and never
-        // touch any other column — customers already exist in QBO (imported
-        // from the QuickBooks Desktop file), we are only linking them.
+        // Only ever UPDATE qbo_id on an existing row. Never touch any other
+        // column here -- this branch is for customers that already exist
+        // locally (imported from the QuickBooks Desktop file), we are only
+        // linking them.
         await database(TABLE).where('sbmqb_id', match.sbmqbId).update({ qbo_id: match.qboId });
+      }
+
+      for (let i = 0; i < unmatched.length; i += 1) {
+        const entry = unmatched[i];
+
+        if (!entry.willCreate) {
+          // Already created by a previous run (or already present locally
+          // under this synthetic sbmqb_id) -- skip instead of duplicating.
+          continue;
+        }
+
+        const qboCustomer = unmatchedQboCustomers[i];
+
+        // INSERT path: this is the one case where syncCustomers creates a
+        // brand-new local row. Jefe's real workflow creates customers
+        // directly in QBO, and the Medición screen dropdown only reads from
+        // this local table -- so a QBO-only customer needs a local row
+        // before it's usable anywhere in the app.
+        //
+        // Each row is wrapped individually: the in-memory `existingSbmqbIds`
+        // Set is only a best-effort guard (computed once at the start of the
+        // run), not a real lock -- two overlapping non-dry-run syncs can both
+        // decide to create the same synthetic sbmqb_id. The DB-level unique
+        // index (see migration 20260925120000) is the real guard and reports
+        // the collision as ER_DUP_ENTRY. Treat that specific case as "already
+        // created" instead of aborting the whole batch. Any OTHER error on a
+        // single row (bad data, connection blip, etc.) must not take down the
+        // rest of the batch either -- log it and surface it on the matching
+        // `unmatched` entry via `createError` so it's visible in the response.
+        try {
+          await database(TABLE).insert({
+            sbmqb_id: entry.sbmqbId,
+            name: qboCustomer.DisplayName,
+            full_name: qboCustomer.FullyQualifiedName || qboCustomer.DisplayName,
+            company_name: qboCustomer.CompanyName || '',
+            sbmqb_service: DEFAULT_NEW_CUSTOMER_SERVICE,
+            class: DEFAULT_NEW_CUSTOMER_CLASS,
+            status: qboCustomer.Active ? 'ACTIVE' : 'SUSPENDED',
+            qbo_id: qboCustomer.Id
+          });
+
+          existingSbmqbIds.add(entry.sbmqbId);
+        } catch (error) {
+          if (error.code === 'ER_DUP_ENTRY') {
+            // Lost the race to another overlapping sync run (or the row was
+            // otherwise created between the initial `existingSbmqbIds` read
+            // and this INSERT) -- not a real failure, count it as already
+            // created rather than propagating.
+            entry.willCreate = false;
+            existingSbmqbIds.add(entry.sbmqbId);
+          } else {
+            console.error(
+              `[qboCustomerService.syncCustomers] Failed to create local customer for QBO id ${qboCustomer.Id} ` +
+                `(sbmqb_id ${entry.sbmqbId}): ${error.message}`
+            );
+            entry.createError = error.message;
+          }
+        }
       }
     }
 
-    return { totalQbo: qboCustomers.length, matched, unmatched, ambiguous, wouldUpdate };
+    // Computed after the apply block (if it ran) so a row that hit
+    // ER_DUP_ENTRY and got reclassified as "already created" is reflected
+    // correctly in the counts returned to the caller.
+    const wouldUpdate = matched.filter((match) => match.willUpdate).length;
+    const wouldCreate = unmatched.filter((entry) => entry.willCreate).length;
+    const yaCreado = unmatched.length - wouldCreate;
+
+    return { totalQbo: qboCustomers.length, matched, unmatched, ambiguous, wouldUpdate, wouldCreate, yaCreado };
   };
 
   /**

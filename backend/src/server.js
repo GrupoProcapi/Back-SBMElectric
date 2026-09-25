@@ -796,11 +796,17 @@ app.get('/api/customers', async (req, res, next) => {
 });
 
 // Get single Customer
+// NOTA (BUG ALTO, seguridad): antes se armaba con `database.raw` interpolando
+// `customerId` sin comillas ni parametrizar, lo cual era una inyección SQL
+// preexistente y además rompía con sbmqb_id sintéticos tipo "QBO-555" (MySQL
+// intentaba resolverlo como expresión aritmética `QBO - 555`). Se usa el
+// query builder parametrizado de knex (`database.table(...)` en vez de
+// `database(...)` para que el singleton siga siendo interceptable en tests,
+// ver test/customersRoutes.test.js).
 app.get('/api/customers/:id', async (req, res, next) => {
   try {
     const customerId = req.params.id;
-    database.raw(`SELECT * FROM sbmqb_customers WHERE sbmqb_id = ${customerId}`)
-    .then(([rows, columns]) => rows[0])
+    database.table('sbmqb_customers').where('sbmqb_id', customerId).first()
     .then((row) => row ? res.json({ message: row }) : res.status(404).json({ message: 'Customer not found' }))
     .catch(next);
   } catch (err) {
@@ -809,14 +815,17 @@ app.get('/api/customers/:id', async (req, res, next) => {
 });
 
 // Put Customers
+// NOTA: convertido a query builder parametrizado por consistencia/seguridad
+// (mismo fix que GET /api/customers/:id), sin cambiar el comportamiento.
 app.put('/api/customers', async (req, res, next) => {
   try {
     const customer = req.body;
-    database.raw(`UPDATE sbmqb_customers SET sbmqb_service = "${customer.sbmqb_service}" where sbmqb_id = "${customer.sbmqb_id}"`)
-    .then(([rows, columns]) => rows)
-    .then((row) => res.json({ message: "Se actualizo el servicio del cliente a: "+customer.sbmqb_service }))
+    database.table('sbmqb_customers')
+      .where('sbmqb_id', customer.sbmqb_id)
+      .update({ sbmqb_service: customer.sbmqb_service })
+    .then(() => res.json({ message: "Se actualizo el servicio del cliente a: "+customer.sbmqb_service }))
     .catch(next);
-    
+
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

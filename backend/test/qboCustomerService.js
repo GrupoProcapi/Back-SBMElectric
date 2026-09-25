@@ -38,8 +38,13 @@ const buildFakeQboClient = ({ countResponse, pages }) => {
   };
 };
 
-const buildFakeDatabase = (localCustomers) => {
+// `insertFailures` maps a `sbmqb_id` to the Error the fake `insert()` should
+// throw instead of recording the row -- lets tests simulate a MySQL-level
+// insert failure (e.g. ER_DUP_ENTRY from the unique index, or any other
+// error) for one specific row while the rest of the batch inserts normally.
+const buildFakeDatabase = (localCustomers, insertFailures = {}) => {
   const updates = [];
+  const inserts = [];
 
   const db = (table) => {
     if (table !== 'sbmqb_customers') {
@@ -53,11 +58,20 @@ const buildFakeDatabase = (localCustomers) => {
           updates.push({ column, value, values });
           return 1;
         }
-      })
+      }),
+      insert: async (values) => {
+        const failure = insertFailures[values.sbmqb_id];
+        if (failure) {
+          throw failure;
+        }
+        inserts.push(values);
+        return [1];
+      }
     };
   };
 
   db.updates = updates;
+  db.inserts = inserts;
   return db;
 };
 
@@ -372,6 +386,262 @@ describe('qboCustomerService (factory + matching)', () => {
 
       expect(result.unmatched).to.have.lengthOf(1);
       expect(fakeDatabase.updates).to.have.lengthOf(0);
+    });
+
+    describe('creating new customers found only in QBO (unmatched bucket)', () => {
+      const buildNewQboCustomer = (overrides = {}) => ({
+        Id: '555',
+        DisplayName: 'Brand New Boat LLC',
+        FullyQualifiedName: 'Brand New Boat LLC',
+        CompanyName: 'Brand New Boat LLC',
+        Active: true,
+        ...overrides
+      });
+
+      it('dry-run: reports wouldCreate for unmatched customers but inserts nothing', async () => {
+        const qboCustomer = buildNewQboCustomer();
+        const fakeQboClient = buildFakeQboClient({
+          countResponse: { QueryResponse: { totalCount: 1 } },
+          pages: [[qboCustomer]]
+        });
+        const fakeDatabase = buildFakeDatabase([]);
+
+        const { syncCustomers } = createQboCustomerService({ qboClient: fakeQboClient, database: fakeDatabase });
+
+        const result = await syncCustomers({ dryRun: true });
+
+        expect(result.unmatched).to.have.lengthOf(1);
+        expect(result.unmatched[0]).to.include({
+          qboId: '555',
+          sbmqbId: 'QBO-555',
+          willCreate: true
+        });
+        expect(result.wouldCreate).to.equal(1);
+        expect(result.yaCreado).to.equal(0);
+        expect(fakeDatabase.inserts).to.have.lengthOf(0);
+        expect(fakeDatabase.updates).to.have.lengthOf(0);
+      });
+
+      it('apply: inserts a new local row with all expected default fields when QBO_SYNC_APPLY_ENABLED=true', async () => {
+        const previous = process.env.QBO_SYNC_APPLY_ENABLED;
+        process.env.QBO_SYNC_APPLY_ENABLED = 'true';
+
+        const qboCustomer = buildNewQboCustomer();
+        const fakeQboClient = buildFakeQboClient({
+          countResponse: { QueryResponse: { totalCount: 1 } },
+          pages: [[qboCustomer]]
+        });
+        const fakeDatabase = buildFakeDatabase([]);
+
+        const { syncCustomers } = createQboCustomerService({ qboClient: fakeQboClient, database: fakeDatabase });
+
+        try {
+          const result = await syncCustomers({ dryRun: false });
+
+          expect(result.wouldCreate).to.equal(1);
+          expect(result.yaCreado).to.equal(0);
+          expect(fakeDatabase.inserts).to.have.lengthOf(1);
+          expect(fakeDatabase.inserts[0]).to.deep.equal({
+            sbmqb_id: 'QBO-555',
+            name: 'Brand New Boat LLC',
+            full_name: 'Brand New Boat LLC',
+            company_name: 'Brand New Boat LLC',
+            sbmqb_service: '4113 &#183; INGRESOS ELECTRIDIDAD:70000:70004-Electricity T. @ 0.48/KW',
+            class: 'MARINA',
+            status: 'ACTIVE',
+            qbo_id: '555'
+          });
+        } finally {
+          if (previous === undefined) {
+            delete process.env.QBO_SYNC_APPLY_ENABLED;
+          } else {
+            process.env.QBO_SYNC_APPLY_ENABLED = previous;
+          }
+        }
+      });
+
+      it('apply: sets status SUSPENDED and blank company_name for an inactive customer with no CompanyName', async () => {
+        const previous = process.env.QBO_SYNC_APPLY_ENABLED;
+        process.env.QBO_SYNC_APPLY_ENABLED = 'true';
+
+        const qboCustomer = buildNewQboCustomer({
+          Id: '777',
+          CompanyName: undefined,
+          Active: false
+        });
+        const fakeQboClient = buildFakeQboClient({
+          countResponse: { QueryResponse: { totalCount: 1 } },
+          pages: [[qboCustomer]]
+        });
+        const fakeDatabase = buildFakeDatabase([]);
+
+        const { syncCustomers } = createQboCustomerService({ qboClient: fakeQboClient, database: fakeDatabase });
+
+        try {
+          await syncCustomers({ dryRun: false });
+
+          expect(fakeDatabase.inserts[0].status).to.equal('SUSPENDED');
+          expect(fakeDatabase.inserts[0].company_name).to.equal('');
+        } finally {
+          if (previous === undefined) {
+            delete process.env.QBO_SYNC_APPLY_ENABLED;
+          } else {
+            process.env.QBO_SYNC_APPLY_ENABLED = previous;
+          }
+        }
+      });
+
+      it('apply: throws and inserts nothing when QBO_SYNC_APPLY_ENABLED is not "true" (unmatched-only sync)', async () => {
+        const previous = process.env.QBO_SYNC_APPLY_ENABLED;
+        delete process.env.QBO_SYNC_APPLY_ENABLED;
+
+        const qboCustomer = buildNewQboCustomer();
+        const fakeQboClient = buildFakeQboClient({
+          countResponse: { QueryResponse: { totalCount: 1 } },
+          pages: [[qboCustomer]]
+        });
+        const fakeDatabase = buildFakeDatabase([]);
+
+        const { syncCustomers } = createQboCustomerService({ qboClient: fakeQboClient, database: fakeDatabase });
+
+        try {
+          await syncCustomers({ dryRun: false });
+          throw new Error('Expected syncCustomers to throw when apply mode is disabled');
+        } catch (error) {
+          expect(error.message).to.match(/QBO_SYNC_APPLY_ENABLED/);
+          expect(fakeDatabase.inserts).to.have.lengthOf(0);
+        } finally {
+          if (previous === undefined) {
+            delete process.env.QBO_SYNC_APPLY_ENABLED;
+          } else {
+            process.env.QBO_SYNC_APPLY_ENABLED = previous;
+          }
+        }
+      });
+
+      it('treats a duplicate-key insert failure (ER_DUP_ENTRY) as already created and keeps processing the rest of the batch', async () => {
+        const previous = process.env.QBO_SYNC_APPLY_ENABLED;
+        process.env.QBO_SYNC_APPLY_ENABLED = 'true';
+
+        // Two unmatched QBO customers: the first loses a race against
+        // another overlapping sync run (the unique index on sbmqb_id rejects
+        // it), the second has no such conflict and must still be inserted.
+        const qboCustomers = [
+          buildNewQboCustomer({ Id: '555', DisplayName: 'Raced Boat LLC', FullyQualifiedName: 'Raced Boat LLC' }),
+          buildNewQboCustomer({ Id: '556', DisplayName: 'Clean Boat LLC', FullyQualifiedName: 'Clean Boat LLC' })
+        ];
+        const fakeQboClient = buildFakeQboClient({
+          countResponse: { QueryResponse: { totalCount: 2 } },
+          pages: [qboCustomers]
+        });
+        const dupError = new Error("Duplicate entry 'QBO-555' for key 'sbmqb_customers_sbmqb_id_unique'");
+        dupError.code = 'ER_DUP_ENTRY';
+        const fakeDatabase = buildFakeDatabase([], { 'QBO-555': dupError });
+
+        const { syncCustomers } = createQboCustomerService({ qboClient: fakeQboClient, database: fakeDatabase });
+
+        try {
+          const result = await syncCustomers({ dryRun: false });
+
+          expect(result.unmatched).to.have.lengthOf(2);
+
+          const racedEntry = result.unmatched.find((entry) => entry.qboId === '555');
+          expect(racedEntry.willCreate).to.equal(false);
+          expect(racedEntry.createError).to.equal(undefined);
+
+          const cleanEntry = result.unmatched.find((entry) => entry.qboId === '556');
+          expect(cleanEntry.willCreate).to.equal(true);
+
+          expect(result.yaCreado).to.equal(1);
+          expect(result.wouldCreate).to.equal(1);
+          expect(fakeDatabase.inserts).to.have.lengthOf(1);
+          expect(fakeDatabase.inserts[0].sbmqb_id).to.equal('QBO-556');
+        } finally {
+          if (previous === undefined) {
+            delete process.env.QBO_SYNC_APPLY_ENABLED;
+          } else {
+            process.env.QBO_SYNC_APPLY_ENABLED = previous;
+          }
+        }
+      });
+
+      it('reports a non-duplicate insert failure on the unmatched entry via createError and keeps processing the rest of the batch', async () => {
+        const previous = process.env.QBO_SYNC_APPLY_ENABLED;
+        process.env.QBO_SYNC_APPLY_ENABLED = 'true';
+
+        const qboCustomers = [
+          buildNewQboCustomer({ Id: '555', DisplayName: 'Broken Boat LLC', FullyQualifiedName: 'Broken Boat LLC' }),
+          buildNewQboCustomer({ Id: '556', DisplayName: 'Clean Boat LLC', FullyQualifiedName: 'Clean Boat LLC' })
+        ];
+        const fakeQboClient = buildFakeQboClient({
+          countResponse: { QueryResponse: { totalCount: 2 } },
+          pages: [qboCustomers]
+        });
+        const otherError = new Error("Data too long for column 'name' at row 1");
+        otherError.code = 'ER_DATA_TOO_LONG';
+        const fakeDatabase = buildFakeDatabase([], { 'QBO-555': otherError });
+
+        const { syncCustomers } = createQboCustomerService({ qboClient: fakeQboClient, database: fakeDatabase });
+
+        try {
+          const result = await syncCustomers({ dryRun: false });
+
+          expect(result.unmatched).to.have.lengthOf(2);
+
+          const brokenEntry = result.unmatched.find((entry) => entry.qboId === '555');
+          expect(brokenEntry.createError).to.equal("Data too long for column 'name' at row 1");
+
+          const cleanEntry = result.unmatched.find((entry) => entry.qboId === '556');
+          expect(cleanEntry.createError).to.equal(undefined);
+
+          // The failing row must not abort the batch -- the following row
+          // still gets inserted.
+          expect(fakeDatabase.inserts).to.have.lengthOf(1);
+          expect(fakeDatabase.inserts[0].sbmqb_id).to.equal('QBO-556');
+        } finally {
+          if (previous === undefined) {
+            delete process.env.QBO_SYNC_APPLY_ENABLED;
+          } else {
+            process.env.QBO_SYNC_APPLY_ENABLED = previous;
+          }
+        }
+      });
+
+      it('does not duplicate a customer already created by a previous sync (detected by synthetic sbmqb_id)', async () => {
+        const previous = process.env.QBO_SYNC_APPLY_ENABLED;
+        process.env.QBO_SYNC_APPLY_ENABLED = 'true';
+
+        // Simulates the second run: the QBO customer still doesn't match by
+        // qbo_id/full_name/name (e.g. its local row is stale/out of sync),
+        // but a row with the synthetic sbmqb_id it would generate already
+        // exists locally -- the dedup check must catch this by sbmqb_id.
+        const qboCustomer = buildNewQboCustomer({ Id: '555', DisplayName: 'Renamed In QBO', FullyQualifiedName: 'Renamed In QBO' });
+        const fakeQboClient = buildFakeQboClient({
+          countResponse: { QueryResponse: { totalCount: 1 } },
+          pages: [[qboCustomer]]
+        });
+        const fakeDatabase = buildFakeDatabase([
+          { sbmqb_id: 'QBO-555', qbo_id: null, name: 'Brand New Boat LLC', full_name: 'Brand New Boat LLC' }
+        ]);
+
+        const { syncCustomers } = createQboCustomerService({ qboClient: fakeQboClient, database: fakeDatabase });
+
+        try {
+          const result = await syncCustomers({ dryRun: false });
+
+          expect(result.unmatched).to.have.lengthOf(1);
+          expect(result.unmatched[0].willCreate).to.equal(false);
+          expect(result.wouldCreate).to.equal(0);
+          expect(result.yaCreado).to.equal(1);
+          expect(fakeDatabase.inserts).to.have.lengthOf(0);
+        } finally {
+          if (previous === undefined) {
+            delete process.env.QBO_SYNC_APPLY_ENABLED;
+          } else {
+            process.env.QBO_SYNC_APPLY_ENABLED = previous;
+          }
+        }
+      });
     });
   });
 
