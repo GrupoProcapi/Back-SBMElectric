@@ -85,7 +85,16 @@ const getQBOItems = async ({ search, client = qboClient } = {}) => {
     }
 
     const query = buildItemsQuery(sanitizedSearch, { startPosition, maxResults: ITEM_PAGE_SIZE });
-    const response = await client.makeApiCall(`/query?query=${query}`);
+    // encodeURIComponent es OBLIGATORIO acá: `query` es un string con espacios,
+    // comillas simples y, cuando hay `search`, el wildcard `%` de LIKE. El
+    // WHATWG URL parser (usado por axios dentro de intuit-oauth) SÍ encodea
+    // espacios/comillas automáticamente, pero NUNCA toca un `%` crudo -- lo
+    // deja tal cual porque podría ser ya una secuencia percent-encoded válida.
+    // Eso mandaba un `%` literal (no `%25`) a QBO, que rompía su parser de
+    // queries con un error genérico de "fallo del sistema" (500) apenas se
+    // usaba `search` (LIKE). Sin `search` no había `%` en la query, por eso
+    // ese camino nunca mostró el bug.
+    const response = await client.makeApiCall(`/query?query=${encodeURIComponent(query)}`);
     const page = response.QueryResponse?.Item || [];
 
     items.push(...page);
@@ -98,9 +107,11 @@ const getQBOItems = async ({ search, client = qboClient } = {}) => {
 };
 
 const getQBOInvoices = async (maxResults = 100) => {
-  const response = await qboClient.makeApiCall(
-    `/query?query=SELECT * FROM Invoice ORDERBY MetaData.CreateTime DESC MAXRESULTS ${maxResults}`
-  );
+  // Mismo motivo que en getQBOItems: encodeURIComponent sobre la query completa
+  // antes de mandarla como querystring (ver comentario ahí para el detalle del
+  // bug de `%` crudo).
+  const query = `SELECT * FROM Invoice ORDERBY MetaData.CreateTime DESC MAXRESULTS ${maxResults}`;
+  const response = await qboClient.makeApiCall(`/query?query=${encodeURIComponent(query)}`);
   return response.QueryResponse?.Invoice || [];
 };
 

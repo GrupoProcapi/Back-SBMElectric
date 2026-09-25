@@ -30,13 +30,21 @@ const {
 // Fake mínimo de qboClient para testear getQBOItems() sin red real -- mismo
 // approach hand-rolled que test/qboCustomerService.js (no hay sinon/proxyquire
 // instalado en el proyecto). Simula páginas de resultados según STARTPOSITION.
+//
+// `endpoint` llega URL-encodeado (getQBOItems hace encodeURIComponent(query)
+// antes de armar el endpoint -- ver fix del bug de `%` crudo en
+// qboInvoiceService.js). `calls` guarda el endpoint crudo (encodeado) tal cual
+// se lo mandaría a QBO -- útil para verificar que el `%` de LIKE viaje como
+// `%25`. El matching de STARTPOSITION decodea primero para no depender del
+// formato exacto de encoding de espacios.
 const buildFakeQboItemsClient = (pages) => {
   const calls = [];
   return {
     calls,
     makeApiCall: async (endpoint) => {
       calls.push(endpoint);
-      const startPositionMatch = endpoint.match(/STARTPOSITION (\d+)/);
+      const decoded = decodeURIComponent(endpoint);
+      const startPositionMatch = decoded.match(/STARTPOSITION (\d+)/);
       const startPosition = startPositionMatch ? parseInt(startPositionMatch[1], 10) : 1;
       const pageIndex = Math.floor((startPosition - 1) / ITEM_PAGE_SIZE);
       const page = pages[pageIndex] || [];
@@ -397,7 +405,7 @@ describe('qboInvoiceService - getQBOItems (paginación + search)', () => {
 
     expect(items).to.have.lengthOf(50);
     expect(fakeClient.calls).to.have.lengthOf(1);
-    expect(fakeClient.calls[0]).to.include('STARTPOSITION 1 MAXRESULTS 1000');
+    expect(decodeURIComponent(fakeClient.calls[0])).to.include('STARTPOSITION 1 MAXRESULTS 1000');
   });
 
   it('pagina cuando hay más de 1000 resultados, hasta traer todo', async () => {
@@ -410,9 +418,9 @@ describe('qboInvoiceService - getQBOItems (paginación + search)', () => {
 
     expect(items).to.have.lengthOf(2250);
     expect(fakeClient.calls).to.have.lengthOf(3);
-    expect(fakeClient.calls[0]).to.include('STARTPOSITION 1 MAXRESULTS 1000');
-    expect(fakeClient.calls[1]).to.include('STARTPOSITION 1001 MAXRESULTS 1000');
-    expect(fakeClient.calls[2]).to.include('STARTPOSITION 2001 MAXRESULTS 1000');
+    expect(decodeURIComponent(fakeClient.calls[0])).to.include('STARTPOSITION 1 MAXRESULTS 1000');
+    expect(decodeURIComponent(fakeClient.calls[1])).to.include('STARTPOSITION 1001 MAXRESULTS 1000');
+    expect(decodeURIComponent(fakeClient.calls[2])).to.include('STARTPOSITION 2001 MAXRESULTS 1000');
   });
 
   it('para exactamente al recibir una última página completa (múltiplo exacto de 1000)', async () => {
@@ -433,7 +441,11 @@ describe('qboInvoiceService - getQBOItems (paginación + search)', () => {
     const items = await qboInvoiceService.getQBOItems({ search: 'ELECTR', client: fakeClient });
 
     expect(items).to.have.lengthOf(1);
-    expect(fakeClient.calls[0]).to.include("Name LIKE '%ELECTR%'");
+    expect(decodeURIComponent(fakeClient.calls[0])).to.include("Name LIKE '%ELECTR%'");
+    // Regresión del bug real: el `%` de LIKE DEBE viajar como `%25` en el
+    // endpoint crudo (URL-encodeado) que se le manda a QBO. Un `%` literal acá
+    // es exactamente lo que rompía la query contra QBO (500 genérico).
+    expect(fakeClient.calls[0]).to.include('%25ELECTR%25');
   });
 
   it('rechaza un search con caracteres inválidos ANTES de llamar a QBO', async () => {
