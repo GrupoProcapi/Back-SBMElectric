@@ -9,6 +9,15 @@ const readFileSync = filename => {
   }
 };
 
+// Security-sensitive: unlike other config values in this file (which fall back
+// to safe/optional defaults or stay null/undefined), the API key must never
+// have a hardcoded fallback, since that would let the app boot with a known,
+// predictable credential. Fail fast instead of starting in an insecure state.
+if (!process.env.API_KEY) {
+  console.error('FATAL: Missing required environment variable API_KEY. The application cannot start without it.');
+  process.exit(1);
+}
+
 // Constants
 module.exports = {
   database: {
@@ -22,7 +31,7 @@ module.exports = {
   },
   port: process.env.PORT || 8080,
   portSOAP: process.env.PORTSOAP || 4747,
-  apiKey: process.env.API_KEY || 'a2a47f86-c361-4fed-98ec-6b36eeef0266',
+  apiKey: process.env.API_KEY,
   jwt: {
     secret: process.env.JWT_SECRET || 'bdd05bf894011885ff44'
   },

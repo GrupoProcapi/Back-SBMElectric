@@ -19,14 +19,18 @@ const apiKeyValidator = require("./apiKeyValidator");
 const { validationResult } = require('express-validator');
 const { validateCreateUser, validateUpdateUser, validateId, validateDate, validateLogin, validateCreateMeasurer, validateUpdateMeasurer, validateUpdateInvoice, validateCreateMeasurements, validateUpdateMeasurements, validateCreateInvoice } = require('./validationRules');
 const jwt = require('jsonwebtoken');
-const qboRoutes = require('./routes/qboRoutes');
+const qboPublicRoutes = require('./routes/qboPublicRoutes');
+const qboAdminRoutes = require('./routes/qboAdminRoutes');
 const qboInvoiceService = require('./services/qboInvoiceService');
 // Api
 const app = express();
 app.use(bodyParser.json());
 app.use(morgan("common"));
 
-app.use('/api/qbo', qboRoutes);
+// Public QBO endpoints (OAuth start + Intuit's redirect callback) — these can NEVER
+// require the internal api-key, since the browser redirect from Intuit doesn't carry it.
+// Every other QBO endpoint lives in qboAdminRoutes and is mounted below, after apiKeyValidator.
+app.use('/api/qbo', qboPublicRoutes);
 
 const isEmpty = (str) => {
   return str === null || str === undefined || str.trim() === '';
@@ -141,7 +145,36 @@ app.get("/", function(req, res, next) {
   res.json({ application: "SBM Measurer API", version: 1 })
 });
 
+//Log In
+// IMPORTANT: this route MUST stay registered before app.use(apiKeyValidator) below.
+// Client apps authenticate here to obtain a session and don't have the internal
+// api-key — if this route is ever moved after apiKeyValidator, login breaks for
+// every client without that key.
+// TODO(rate-limit): this endpoint needs dedicated rate limiting (e.g. express-rate-limit)
+// to slow down credential-stuffing/brute-force attempts. express-rate-limit is NOT
+// currently a dependency of this project — do not add it without Jefe's approval.
+app.post('/api/login', validateLogin, async (req, res, next) => {
+  const errors = validationResult(req);
+  if(!errors.isEmpty())
+    {
+      return res.status(400).json({ errors: errors.array() });
+    }
+  try {
+    const newUser = req.body;
+    database.raw(`SELECT id, username, role FROM users WHERE username = "${newUser.username}" AND password = "${btoa(newUser.password)}"`)
+    .then(([rows]) => rows[0])
+    .then((row) => row ? res.json({ message: row }) : res.status(404).json({ message: 'Wrong username or password' }))
+    .catch(next);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
 app.use(apiKeyValidator);
+
+// Admin QBO endpoints (customers/invoices/items sync, status) — protected by the
+// internal api-key like every other admin route below.
+app.use('/api/qbo', qboAdminRoutes);
 
 app.get("/schema", function(req, res, next) {
   database.raw('CREATE DATABASE sbm_electric_measurement')
@@ -281,25 +314,7 @@ app.delete('/api/users/:id', validateId, async (req, res, next) => {
   }
 });
 
-//Log In
-app.post('/api/login', validateLogin, async (req, res, next) => {
-  const errors = validationResult(req);
-  if(!errors.isEmpty())
-    {
-      return res.status(400).json({ errors: errors.array() });
-    }
-  try {
-    const newUser = req.body;
-    database.raw(`SELECT id, username, role FROM users WHERE username = "${newUser.username}" AND password = "${btoa(newUser.password)}"`)
-    .then(([rows]) => rows[0])
-    .then((row) => row ? res.json({ message: row }) : res.status(404).json({ message: 'Wrong username or password' }))
-    .catch(next);
-  } catch (err) {
-    res.status(400).json({ message: err.message });
-  }
-});
-
-// Measures  Routes 
+// Measures  Routes
 // Create Measurer
 app.post('/api/measurers', validateCreateMeasurer, async (req, res, next) => {
   const errors = validationResult(req);
@@ -623,7 +638,9 @@ app.post('/api/bill', validateCreateInvoice, async (req, res, next) => {
       });
 
       if (newInvoice.sbmqb_customer_name == "MEDIDOR VACIO")
-        return Promise.resolve(); // Retorna una promesa resuelta
+        return null; // No se crea factura local, nada que enviar a QBO
+
+      let createdInvoiceId;
 
       await database.transaction(async trx => {
         const [insertedInvoice] = await trx('sbmqb_invoices')
@@ -637,9 +654,11 @@ app.post('/api/bill', validateCreateInvoice, async (req, res, next) => {
             begin_date: newInvoice.begin_date,
             end_date: newInvoice.end_date,
             status: 'PENDIENTE',
-            sbmqb_invoice_id: "" 
+            sbmqb_invoice_id: ""
           })
           .returning('*');
+
+        createdInvoiceId = insertedInvoice.id;
 
         await trx('measurements')
           .update({
@@ -648,24 +667,61 @@ app.post('/api/bill', validateCreateInvoice, async (req, res, next) => {
           })
           .whereIn('id', newInvoice.ids);
       })
-      
+
+      return createdInvoiceId;
     });
 
-    await Promise.all(tokenPromises);
-    
-    // Enviar facturas pendientes a QuickBooks Online
-    let qboResult = null;
-    try {
-      qboResult = await qboInvoiceService.processPendingInvoices();
-      console.log('Facturas enviadas a QBO:', qboResult);
-    } catch (qboError) {
-      console.error('Error enviando a QBO (las facturas quedaron PENDIENTE):', qboError.message);
-      qboResult = { error: qboError.message };
+    const createdInvoiceIds = (await Promise.all(tokenPromises)).filter(
+      (id) => id !== null && id !== undefined
+    );
+
+    // Intentar sincronizar con QuickBooks Online (siempre en modo dry-run por ahora:
+    // la integración real todavía no tiene OAuth reautorizado ni QBO_SERVICE_MAP_JSON
+    // cargado con IDs reales). Esto NUNCA debe bloquear ni fallar la creación de la
+    // factura local: es un intento best-effort informativo.
+    let qboSync = {
+      attempted: false,
+      status: 'skipped',
+      message: 'No se crearon facturas locales nuevas, no se intentó sincronizar con QBO.'
+    };
+
+    if (createdInvoiceIds.length > 0) {
+      qboSync.attempted = true;
+      try {
+        const qboResult = await qboInvoiceService.processPendingInvoices({
+          invoiceIds: createdInvoiceIds,
+          dryRun: true
+        });
+
+        const configIncomplete = qboResult.results.some(
+          (result) =>
+            typeof result.error === 'string' &&
+            (result.error.includes('deshabilitada por configuración incompleta') ||
+              result.error.includes('No hay mapeo de precio/item configurado'))
+        );
+
+        if (configIncomplete) {
+          console.warn(
+            `QBO aún no configurado completamente, factura(s) local(es) #${createdInvoiceIds.join(', ')} creada(s) sin intento de sincronización con QBO.`
+          );
+          qboSync.status = 'skipped';
+          qboSync.message = 'QBO aún no configurado completamente (faltan credenciales/mapeo de servicios). La factura local se creó sin sincronizar con QBO.';
+          qboSync.result = qboResult;
+        } else {
+          qboSync.status = 'preview';
+          qboSync.message = 'Preview de sincronización con QBO calculado en modo dry-run.';
+          qboSync.result = qboResult;
+        }
+      } catch (qboError) {
+        console.error('Error inesperado ejecutando el preview de QBO (las facturas locales quedaron PENDIENTE):', qboError.message);
+        qboSync.status = 'error';
+        qboSync.message = qboError.message;
+      }
     }
-    
-    res.status(200).json({ 
+
+    res.status(200).json({
       message: "Todas las operaciones se completaron con éxito",
-      qbo: qboResult
+      qboSync
     });
 
   } catch (err) {
