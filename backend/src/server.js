@@ -579,8 +579,16 @@ app.get('/api/measurements/total', validateDate, async (req, res, next) => {
     // parametriza con bindings y se agrega el fallback: si current_measure_date es
     // NULL, se filtra por last_measure_date en su lugar (mismo criterio que el
     // fallback aplicado en calculateTotalMeasurements).
-    let query = 'WHERE ((x.current_measure_date IS NOT NULL AND DATE(x.current_measure_date) BETWEEN ? AND ?)' +
-      ' OR (x.current_measure_date IS NULL AND DATE(x.last_measure_date) BETWEEN ? AND ?))';
+    // Fix CRÍTICO (code review 2026-09-27): antes el WHERE solo filtraba por rango
+    // de fechas, sin importar el status de la medición -- devolvía grupos (y
+    // firmaba un data_token nuevo, JWT) para mediciones ya FACTURADO o PROCESANDO
+    // dentro del rango. Ese token, si llegaba a POST /api/bill, podía generar una
+    // factura local duplicada para mediciones que ya estaban facturadas o en
+    // proceso (ver fix compare-and-set en POST /api/bill). 'PENDIENTE' es un
+    // literal fijo del código (no input del usuario), no requiere bind param.
+    let query = "WHERE ((x.current_measure_date IS NOT NULL AND DATE(x.current_measure_date) BETWEEN ? AND ?)" +
+      " OR (x.current_measure_date IS NULL AND DATE(x.last_measure_date) BETWEEN ? AND ?))" +
+      " AND x.status = 'PENDIENTE'";
     const bindings = [from, to, from, to];
 
     if(measurerCode != null)
@@ -706,6 +714,11 @@ app.delete('/api/measurements/:id', validateId, async (req, res, next) => {
   }
 });
 
+// Fix CRÍTICO (code review 2026-09-27): marcador para detectar dentro del
+// catch de cada lote que el aborto fue por compare-and-set (mediciones ya
+// reclamadas), y no un error real de DB/red -- ver POST /api/bill más abajo.
+class MeasurementsAlreadyClaimedError extends Error {}
+
 // Post Bill
 app.post('/api/bill', validateCreateInvoice, async (req, res, next) => {
   const errors = validationResult(req);
@@ -729,47 +742,107 @@ app.post('/api/bill', validateCreateInvoice, async (req, res, next) => {
       });
 
       if (newInvoice.sbmqb_customer_name == "MEDIDOR VACIO")
-        return null; // No se crea factura local, nada que enviar a QBO
+        return { status: 'skipped', invoiceId: null }; // No se crea factura local, nada que enviar a QBO
 
-      let createdInvoiceId;
+      // Fix CRÍTICO (code review 2026-09-27, riesgo de facturación duplicada real
+      // en QBO): antes se insertaba la factura primero y recién después se movían
+      // las measurements a PROCESANDO, sin verificar que siguieran PENDIENTE. Un
+      // reintento de red del cliente HTTP (o repetir la acción) sobre el mismo
+      // rango de fechas generaba una factura LOCAL nueva para las MISMAS
+      // mediciones -- y como la idempotencia hacia QBO se basa en
+      // requestid=sbm-inv-{id local}, QBO no podía detectar el duplicado y creaba
+      // una factura real duplicada.
+      //
+      // Ahora, dentro de la MISMA transacción que crea la factura, primero se
+      // "reclaman" las mediciones con un UPDATE compare-and-set (solo si siguen
+      // PENDIENTE). Si el conteo de filas afectadas no coincide con la cantidad
+      // de ids pedidos, una o más ya fueron reclamadas (facturadas o en proceso
+      // por otro request) -- se aborta tirando un error DENTRO del callback de
+      // trx, lo que hace que knex haga rollback automático del UPDATE de reclamo
+      // (no queda ningún rastro) y NO se crea ninguna factura para ese lote.
+      let createdInvoiceId = null;
+      try {
+        await database.transaction(async trx => {
+          const claimedCount = await trx('measurements')
+            .whereIn('id', newInvoice.ids)
+            .andWhere('status', 'PENDIENTE')
+            .update({ status: 'PROCESANDO' });
 
-      await database.transaction(async trx => {
-        const [insertedInvoice] = await trx('sbmqb_invoices')
-          .insert({
-            sbmqb_customer_name: newInvoice.sbmqb_customer_name,
-            sbmqb_service: newInvoice.sbmqb_service,
-            measurer_code: newInvoice.measurer_code,
-            initial_measure_value: newInvoice.initial_measure_value,
-            current_measure_value: newInvoice.current_measure_value,
-            total_measure_value: newInvoice.total_measure_value,
-            begin_date: newInvoice.begin_date,
-            end_date: newInvoice.end_date,
-            status: 'PENDIENTE',
-            sbmqb_invoice_id: ""
-          })
-          .returning('*');
+          if (claimedCount !== newInvoice.ids.length) {
+            throw new MeasurementsAlreadyClaimedError(
+              `Una o más mediciones del lote (ids: ${newInvoice.ids.join(', ')}) ya no estaban PENDIENTE.`
+            );
+          }
 
-        createdInvoiceId = insertedInvoice.id;
+          const [insertedInvoice] = await trx('sbmqb_invoices')
+            .insert({
+              sbmqb_customer_name: newInvoice.sbmqb_customer_name,
+              sbmqb_service: newInvoice.sbmqb_service,
+              measurer_code: newInvoice.measurer_code,
+              initial_measure_value: newInvoice.initial_measure_value,
+              current_measure_value: newInvoice.current_measure_value,
+              total_measure_value: newInvoice.total_measure_value,
+              begin_date: newInvoice.begin_date,
+              end_date: newInvoice.end_date,
+              status: 'PENDIENTE',
+              sbmqb_invoice_id: ""
+            })
+            .returning('*');
 
-        await trx('measurements')
-          .update({
-            status: 'PROCESANDO',
-            sbmqb_invoices_id: insertedInvoice
-          })
-          .whereIn('id', newInvoice.ids);
-      })
+          createdInvoiceId = insertedInvoice.id;
 
-      return createdInvoiceId;
+          // Fix acompañante (mismo bloque, mismo riesgo de facturación): antes se
+          // guardaba el objeto `insertedInvoice` completo en esta columna entera
+          // (sbmqb_invoices_id integer, ver migrations/20240530151200_v2.js) en vez
+          // de su id -- eso rompía el `.where('sbmqb_invoices_id', invoiceData.id)`
+          // que usa qboInvoiceService.js (línea ~313) para marcar las mediciones
+          // FACTURADO después de un envío exitoso a QBO. Las mediciones quedaban
+          // atascadas en PROCESANDO para siempre tras un sync exitoso.
+          await trx('measurements')
+            .whereIn('id', newInvoice.ids)
+            .update({ sbmqb_invoices_id: insertedInvoice.id });
+        });
+      } catch (transactionError) {
+        if (transactionError instanceof MeasurementsAlreadyClaimedError) {
+          return { status: 'conflict', invoiceId: null };
+        }
+        throw transactionError;
+      }
+
+      return { status: 'created', invoiceId: createdInvoiceId };
     });
 
-    const createdInvoiceIds = (await Promise.all(tokenPromises)).filter(
-      (id) => id !== null && id !== undefined
-    );
+    const tokenResults = await Promise.all(tokenPromises);
 
-    // Intentar sincronizar con QuickBooks Online (siempre en modo dry-run por ahora:
-    // la integración real todavía no tiene OAuth reautorizado ni QBO_SERVICE_MAP_JSON
-    // cargado con IDs reales). Esto NUNCA debe bloquear ni fallar la creación de la
-    // factura local: es un intento best-effort informativo.
+    const createdInvoiceIds = tokenResults
+      .filter((result) => result.status === 'created')
+      .map((result) => result.invoiceId);
+
+    const conflictCount = tokenResults.filter((result) => result.status === 'conflict').length;
+
+    // Facturacion.tsx permite seleccionar varios clientes y facturarlos en un
+    // solo POST (data_token es un array). Si NINGUNA factura se creó y hubo al
+    // menos un conflicto, todo el request era un duplicado (ej. reintento de
+    // red del mismo lote ya procesado) -- se responde 409 y ni se intenta
+    // hablar con QBO. Si el lote era mixto (algunos legítimos + algún
+    // conflicto puntual), las facturas legítimas SÍ se crean y sincronizan; el
+    // conflicto puntual solo se informa más abajo, para no penalizar el resto
+    // del lote por una medición que otro request ya reclamó.
+    if (createdInvoiceIds.length === 0 && conflictCount > 0) {
+      return res.status(409).json({
+        message: 'Una o más mediciones ya fueron facturadas o están en proceso. No se creó ninguna factura nueva para evitar duplicados.'
+      });
+    }
+
+    // Intentar sincronizar con QuickBooks Online. Por defecto queda en modo dry-run
+    // (vista previa, sin escritura real). Solo pasa a envío real (dryRun: false)
+    // cuando QBO_AUTO_INVOICE_ENABLED='true' -- el kill switch de fondo
+    // QBO_WRITES_ENABLED (ver qboClient.js) sigue siendo la protección real contra
+    // escrituras no deseadas, esto solo controla el dryRun de esta llamada puntual.
+    // Esto NUNCA debe bloquear ni fallar la creación de la factura local: es un
+    // intento best-effort informativo.
+    const autoInvoiceEnabled = process.env.QBO_AUTO_INVOICE_ENABLED === 'true';
+
     let qboSync = {
       attempted: false,
       status: 'skipped',
@@ -778,10 +851,11 @@ app.post('/api/bill', validateCreateInvoice, async (req, res, next) => {
 
     if (createdInvoiceIds.length > 0) {
       qboSync.attempted = true;
+      const dryRun = !autoInvoiceEnabled;
       try {
         const qboResult = await qboInvoiceService.processPendingInvoices({
           invoiceIds: createdInvoiceIds,
-          dryRun: true
+          dryRun
         });
 
         const configIncomplete = qboResult.results.some(
@@ -798,9 +872,13 @@ app.post('/api/bill', validateCreateInvoice, async (req, res, next) => {
           qboSync.status = 'skipped';
           qboSync.message = 'QBO aún no configurado completamente (faltan credenciales/mapeo de servicios). La factura local se creó sin sincronizar con QBO.';
           qboSync.result = qboResult;
-        } else {
+        } else if (dryRun) {
           qboSync.status = 'preview';
           qboSync.message = 'Preview de sincronización con QBO calculado en modo dry-run.';
+          qboSync.result = qboResult;
+        } else {
+          qboSync.status = 'sent';
+          qboSync.message = 'Factura enviada a QuickBooks Online.';
           qboSync.result = qboResult;
         }
       } catch (qboError) {
@@ -810,10 +888,20 @@ app.post('/api/bill', validateCreateInvoice, async (req, res, next) => {
       }
     }
 
-    res.status(200).json({
-      message: "Todas las operaciones se completaron con éxito",
+    // Lote mixto (ver nota más arriba): se avisa igual si alguna medición del
+    // lote quedó afuera por conflicto, sin dejar de informar el resultado
+    // exitoso del resto.
+    const responseBody = {
+      message: conflictCount > 0
+        ? `Se completaron las operaciones, pero ${conflictCount} lote(s) de mediciones ya estaban facturados o en proceso y se omitieron para evitar duplicados.`
+        : "Todas las operaciones se completaron con éxito",
       qboSync
-    });
+    };
+    if (conflictCount > 0) {
+      responseBody.conflicts = conflictCount;
+    }
+
+    res.status(200).json(responseBody);
 
   } catch (err) {
     res.status(400).json({ message: err.message });

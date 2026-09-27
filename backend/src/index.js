@@ -4,6 +4,7 @@ const app = require("./server");
 // const { invoiceSOAP, invoiceService }  = require("./invoiceSOAPserver");
 const { port, portSOAP} = require("./config");
 const qboClient = require("./services/qboClient");
+const { startCustomerSyncSchedule } = require("./services/qboCustomerSyncScheduler");
 // const soap = require('soap');
 // const fs = require('fs');
 // const path = require('path');
@@ -13,7 +14,11 @@ const server = app.listen(port, function() {
   
   // Iniciar refresh automático de token QBO
   qboClient.startTokenRefreshInterval();
-  
+
+  // Iniciar sync automático de clientes QBO -> DB local (deshabilitado por
+  // defecto, ver QBO_CUSTOMER_SYNC_SCHEDULE_ENABLED en .env.example)
+  startCustomerSyncSchedule();
+
   // Refrescar token al iniciar (si existe)
   qboClient.refreshTokenPreventively().then(result => {
     console.log('QBO: Estado inicial del token:', result.message);

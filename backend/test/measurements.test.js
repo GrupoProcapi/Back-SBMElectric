@@ -485,4 +485,72 @@ describe('GET /api/measurements/total -- TAREA 2: incluye filas baseline filtran
         done();
       });
   });
+
+  it("agrega el filtro x.status = 'PENDIENTE' al WHERE (fix CRÍTICO code review 2026-09-27: evita firmar un data_token nuevo para mediciones ya FACTURADAS/PROCESANDO, riesgo de facturación duplicada en QBO)", (done) => {
+    let capturedSql = null;
+
+    stubRaw((sql) => {
+      capturedSql = sql;
+      return Promise.resolve([[]]);
+    });
+
+    chai.request(app)
+      .get('/api/measurements/total')
+      .set('api-key', config.apiKey)
+      .query({ from: '2026-09-01', to: '2026-09-30' })
+      .end((err, res) => {
+        expect(err).to.be.null;
+        expect(res).to.have.status(200);
+        expect(capturedSql).to.include("x.status = 'PENDIENTE'");
+        done();
+      });
+  });
+
+  it('cuando la DB aplica ese filtro (comportamiento real de MySQL), una medición ya FACTURADA/PROCESANDO en el rango de fechas no aparece en el resultado', (done) => {
+    const pendienteRow = {
+      id: 1,
+      measurer_id: 10,
+      sbmqb_customer_name: 'Cliente Mixto',
+      sbmqb_service: 'servicio-x',
+      status: 'PENDIENTE',
+      current_measure_value: 200,
+      current_measure_date: '2026-09-15',
+      last_measure_value: 100,
+      last_measure_date: '2026-09-01',
+      measurer_code: 'DOCK-10',
+      pedestal_id: 'DOCK-10'
+    };
+    const facturadoRow = {
+      ...pendienteRow,
+      id: 2,
+      status: 'FACTURADO'
+    };
+    const procesandoRow = {
+      ...pendienteRow,
+      id: 3,
+      status: 'PROCESANDO'
+    };
+
+    stubRaw((sql) => {
+      // Simula lo que haría MySQL real con el WHERE `x.status = 'PENDIENTE'`:
+      // solo devuelve la fila PENDIENTE, las otras dos quedan fuera antes de
+      // llegar siquiera a la app.
+      expect(sql).to.include("x.status = 'PENDIENTE'");
+      const rows = [pendienteRow, facturadoRow, procesandoRow].filter((r) => r.status === 'PENDIENTE');
+      return Promise.resolve([rows]);
+    });
+
+    chai.request(app)
+      .get('/api/measurements/total')
+      .set('api-key', config.apiKey)
+      .query({ from: '2026-09-01', to: '2026-09-30' })
+      .end((err, res) => {
+        expect(err).to.be.null;
+        expect(res).to.have.status(200);
+        expect(res.body.message).to.have.lengthOf(1);
+        expect(res.body.message[0].status).to.equal('PENDIENTE');
+        expect(res.body.message[0].sbmqb_customer_name).to.equal('Cliente Mixto');
+        done();
+      });
+  });
 });
