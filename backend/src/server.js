@@ -56,12 +56,40 @@ const calculateTotalMeasurements = (groupedMeasurements, from, to) => {
           const measurements = groupedMeasurements[key];
           measurements.sort((a, b) => a.id - b.id);
 
-          const firstMeasurement = measurements[0].current_measure_value;
-          const lastMeasurement = measurements[measurements.length - 1].current_measure_value;
+          // Fallback para filas "baseline" sembradas desde el histórico de QuickBooks
+          // (incidente 2026-08-30): esas filas tienen current_measure_value en NULL
+          // porque representan el punto de partida antes de la primera lectura real.
+          // Mismo fallback que ya existe en el frontend (MedidorForm.tsx, fix
+          // 2026-08-31): si no hay lectura actual, se usa la última lectura conocida
+          // (last_measure_value). El fallback final a 0 blinda contra el caso extremo
+          // de que ninguna de las dos exista, para no producir NaN en total_measure_value.
+          const firstRow = measurements[0];
+          const lastRow = measurements[measurements.length - 1];
+          const firstMeasurement = firstRow.current_measure_value ?? firstRow.last_measure_value ?? 0;
+          const lastMeasurement = lastRow.current_measure_value ?? lastRow.last_measure_value ?? 0;
           const measurementIds = measurements.map(measurement => measurement.id);
           const sbmqb_service = measurements[measurements.length - 1].sbmqb_service;
           const measurer_code = measurements[0].pedestal_id;
           const [sbmqb_customer_name, measurer_id, status] = key.split('-itfjrbk-');
+
+          // Fix ALTO (code review 2026-09-27): con el fallback a last_measure_value
+          // agregado más arriba, una fila "baseline" (326 filas sembradas en la
+          // recuperación de datos del 2026-08-30, sin current_measure_value) puede
+          // dar un total negativo si el valor sembrado en last_measure_value quedó
+          // más alto que la primera lectura real registrada después (margen de
+          // error de la recuperación, medidor reemplazado, etc.). Ese total se
+          // manda literalmente como cantidad de factura a QBO -- nunca debe pasar
+          // un valor negativo. Se clampea a 0 y se marca needsReview para que
+          // Facturación revise manualmente en vez de que el error se silencie.
+          const rawTotal = lastMeasurement - firstMeasurement;
+          const needsReview = rawTotal < 0;
+          const totalMeasurementValue = needsReview ? 0 : rawTotal;
+
+          if (needsReview) {
+            console.warn(
+              `total_measure_value negativo (${rawTotal}) para cliente="${sbmqb_customer_name}" measurer_id=${measurer_id} pedestal_id=${measurer_code} -- clampeado a 0 y marcado needsReview.`
+            );
+          }
 
           //Utilizaremos jwt para  que podamos acceder a la información sin tener que hacer un post del body compuesto.
           const secretKey = 'bdd05bf894011885ff44';
@@ -72,7 +100,8 @@ const calculateTotalMeasurements = (groupedMeasurements, from, to) => {
             measurer_code: measurer_code,
             initial_measure_value: firstMeasurement,
             current_measure_value: lastMeasurement,
-            total_measure_value: lastMeasurement - firstMeasurement,
+            total_measure_value: totalMeasurementValue,
+            needsReview: needsReview,
             status:status,
             begin_date:from,
             end_date:to,
@@ -108,7 +137,8 @@ const calculateTotalMeasurements = (groupedMeasurements, from, to) => {
             measurer_code: measurer_code,
             initial_measure_value: firstMeasurement,
             current_measure_value: lastMeasurement,
-            total_measure_value: lastMeasurement - firstMeasurement,
+            total_measure_value: totalMeasurementValue,
+            needsReview: needsReview,
             status:status,
             begin_date:from,
             end_date:to,
@@ -425,10 +455,23 @@ app.post('/api/measurements', validateCreateMeasurements, async (req, res, next)
       //No existe medida anterior
       if (!row) {
         //registrarla como nueva medida.
-        database.raw(`INSERT INTO measurements ( measurer_id, sbmqb_customer_name, description, 
-          current_measure_value, current_measure_date, status) VALUES( ${newMeasurer.measurer_id}, "${newMeasurer.sbmqb_customer_name}", "${newMeasurer.description}", ${newMeasurer.current_measure_value}, "${newMeasurer.current_measure_date}", "${newMeasurer.status}")`)
-        .then(([rows]) => rows[0])
-        .then((row) => res.status(201).json({message : "Measurement Created"}))
+        // NOTA (BUG ALTO, seguridad + funcional, corregido): antes se armaba con
+        // `database.raw` interpolando los valores directo en un string SQL con
+        // comillas dobles -- inyectable, y además rompía con un error genérico si
+        // `description` (comentario del técnico) contenía una comilla doble. Se
+        // usa el query builder parametrizado de knex (`database.table(...)`, mismo
+        // patrón que GET/PUT /api/customers, para que el singleton siga siendo
+        // interceptable en tests), sin cambiar ningún campo ni la lógica
+        // condicional con/sin medida anterior.
+        database.table('measurements').insert({
+          measurer_id: newMeasurer.measurer_id,
+          sbmqb_customer_name: newMeasurer.sbmqb_customer_name,
+          description: newMeasurer.description ?? null,
+          current_measure_value: newMeasurer.current_measure_value,
+          current_measure_date: newMeasurer.current_measure_date,
+          status: newMeasurer.status
+        })
+        .then(() => res.status(201).json({message : "Measurement Created"}))
         .catch(next);
         return
       }
@@ -439,9 +482,18 @@ app.post('/api/measurements', validateCreateMeasurements, async (req, res, next)
       const formattedDate = date.toISOString().slice(0, 19).replace('T', ' ');
       //console.log(formattedDate);  // '2024-05-25 18:27:09'
 
-      database.raw(`INSERT INTO measurements ( measurer_id, sbmqb_customer_name, description, last_measure_value, last_measure_date, current_measure_value, current_measure_date, sbmqb_service, status) VALUES( ${newMeasurer.measurer_id}, "${newMeasurer.sbmqb_customer_name}", "${newMeasurer.description}", ${row.current_measure_value}, "${formattedDate}", ${newMeasurer.current_measure_value}, "${newMeasurer.current_measure_date}","${newMeasurer.sbmqb_service || ''}", "${newMeasurer.status}")`)
-      .then(([lineas]) => lineas[0])
-      .then((lin) => res.status(201).json({message : "Measurement Created"}))
+      database.table('measurements').insert({
+        measurer_id: newMeasurer.measurer_id,
+        sbmqb_customer_name: newMeasurer.sbmqb_customer_name,
+        description: newMeasurer.description ?? null,
+        last_measure_value: row.current_measure_value,
+        last_measure_date: formattedDate,
+        current_measure_value: newMeasurer.current_measure_value,
+        current_measure_date: newMeasurer.current_measure_date,
+        sbmqb_service: newMeasurer.sbmqb_service || '',
+        status: newMeasurer.status
+      })
+      .then(() => res.status(201).json({message : "Measurement Created"}))
       .catch(next);
     })
     .catch(next);
@@ -511,26 +563,38 @@ app.get('/api/measurements/total', validateDate, async (req, res, next) => {
       return res.status(400).json({ errors: errors.array() });
     }
   try {
-    var query = "";
     const from = req.query.from;
     const to = req.query.to;
-    const measurerCode = req.query.measurer_code 
+    const measurerCode = req.query.measurer_code
     const customerName = req.query.customer_name
 
-    if(from != null && to != null)
-      {
-        query += `WHERE DATE(x.current_measure_date) BETWEEN "${from}" and "${to}"`;
-      }
+    // NOTA (BUG ALTO, seguridad + funcional, corregido): antes se armaba el WHERE
+    // interpolando from/to/measurerCode/customerName directo en el string SQL
+    // (inyectable), y el filtro `DATE(x.current_measure_date) BETWEEN ...` excluía
+    // TOTALMENTE las filas "baseline" sembradas del histórico de QuickBooks (326
+    // filas, incidente 2026-08-30) porque tienen current_measure_date en NULL --
+    // `NULL BETWEEN ...` nunca es verdadero en SQL, así que esos clientes
+    // desaparecían silenciosamente de Facturación. `from`/`to` son siempre
+    // strings no vacíos acá porque el middleware `validateDate` los exige. Se
+    // parametriza con bindings y se agrega el fallback: si current_measure_date es
+    // NULL, se filtra por last_measure_date en su lugar (mismo criterio que el
+    // fallback aplicado en calculateTotalMeasurements).
+    let query = 'WHERE ((x.current_measure_date IS NOT NULL AND DATE(x.current_measure_date) BETWEEN ? AND ?)' +
+      ' OR (x.current_measure_date IS NULL AND DATE(x.last_measure_date) BETWEEN ? AND ?))';
+    const bindings = [from, to, from, to];
+
     if(measurerCode != null)
       {
-        query += ` AND y.measurer_code = "${measurerCode}"`;
+        query += ' AND y.measurer_code = ?';
+        bindings.push(measurerCode);
       }
     if(customerName != null)
       {
-        query += ` AND x.sbmqb_customer_name = "${customerName}"`;
+        query += ' AND x.sbmqb_customer_name = ?';
+        bindings.push(customerName);
       }
-    database.raw(`SELECT x.*, y.measurer_code, y.pedestal_id FROM measurements x INNER JOIN measurers y ON x.measurer_id = y.id ${query} ORDER BY x.id desc`)
-    .then(([rows]) => { 
+    database.raw(`SELECT x.*, y.measurer_code, y.pedestal_id FROM measurements x INNER JOIN measurers y ON x.measurer_id = y.id ${query} ORDER BY x.id desc`, bindings)
+    .then(([rows]) => {
       const groupedMeasurements = groupMeasurementsByClientName(rows);
       const totalMeasurements = calculateTotalMeasurements(groupedMeasurements, from, to);
       res.json({ message: totalMeasurements })
@@ -569,24 +633,51 @@ app.put('/api/measurements/:id', validateUpdateMeasurements, async (req, res, ne
   try {
     const measurementId = req.params.id;
     const measurement = req.body;
-    //database.raw(`UPDATE measurements SET user_id=${measurement.user_id}, measurer_id=${measurement.measurer_id}, sbmqb_customer_name="${measurement.sbmqb_customer_name}", sbmqb_customer_id="${measurement.sbmqb_customer_id}", sbmqb_service="${measurement.sbmqb_service}", description="${measurement.description}",  last_measure_value=${measurement.last_measure_value}, last_measure_date="${measurement.last_measure_date}", current_measure_value=${measurement.current_measure_value}, current_measure_date="${measurement.current_measure_date}", status="${measurement.status}" WHERE id = ${measurementId}`)
-    //database.raw(`UPDATE measurements SET sbmqb_customer_name="${measurement.sbmqb_customer_name}", sbmqb_service="${measurement.sbmqb_service}", description="${measurement.description}", current_measure_value=${measurement.current_measure_value}, current_measure_date="${measurement.current_measure_date}", status="${measurement.status}" WHERE id = ${measurementId}`)
+    // NOTA (BUG CRÍTICO, seguridad + funcional, corregido): la query armaba el
+    // UPDATE interpolando valores directo en un string SQL con comillas dobles --
+    // inyectable, Y además tenía una coma faltante entre "measurer_id=..." y
+    // "sbmqb_customer_name=..." que rompía la sintaxis SQL en TODA ejecución (este
+    // endpoint nunca llegó a actualizar una fila en producción, sin importar el
+    // contenido enviado). Se reemplaza por el query builder parametrizado de knex
+    // (`database.table(...)`, mismo patrón que GET/PUT /api/customers) y se arma el
+    // objeto de update solo con los campos realmente enviados en el body -- el
+    // contrato real del frontend (Frontend-SBMElectric/src/api/history.ts,
+    // UpdateMeasurementPayload) únicamente envía sbmqb_customer_name, description y
+    // current_measure_value, así que no tiene sentido pisar el resto de columnas con
+    // valores no provistos.
     database.raw(`SELECT * FROM measurements WHERE id = ${measurementId}`)
     .then(([rows]) => rows[0])
-    .then((row) => row ? 
-        database.raw(`UPDATE measurements SET 
-        measurer_id=${measurement.measurer_id ? measurement.measurer_id : 'measurer_id'}
-        sbmqb_customer_name="${measurement.sbmqb_customer_name}",
-        last_measure_value="${measurement.last_measure_value}",
-        last_measure_date="${measurement.last_measure_date}",
-        current_measure_value="${measurement.current_measure_value}",
-        current_measure_date="${measurement.current_measure_date}",
-        description="${measurement.description}", 
-        status="${measurement.status ? measurement.status : 'status'}"
-        WHERE id = ${measurementId}`)
-        .then(([rows]) => rows[0])
-        .then((row) => res.json({ message: 'Measurement updated.' }))
-    : res.status(404).json({ message: 'Measurement not found' }))
+    .then((row) => {
+      if (!row) {
+        return res.status(404).json({ message: 'Measurement not found' });
+      }
+
+      // Fix ADVERTENCIA (code review 2026-09-27): el alcance de columnas
+      // aceptadas por este endpoint se restringe al contrato real del
+      // frontend (Frontend-SBMElectric/src/api/history.ts,
+      // UpdateMeasurementPayload) -- sbmqb_customer_name, description y
+      // current_measure_value. Antes se aceptaban 9 columnas, incluyendo
+      // measurer_id/status/last_measure_*/sbmqb_service, que con un api-key
+      // válido y sin validación de tipos permitían manipular datos fuera del
+      // contrato (ej. status directamente, o un current_measure_value no
+      // numérico que produce NaN aguas abajo en facturación -- ya bloqueado
+      // por validateUpdateMeasurements). Si en el futuro hace falta
+      // actualizar esas otras columnas, debe ser un endpoint separado con su
+      // propia autorización, no ampliar este.
+      const updateFields = {};
+      if (measurement.sbmqb_customer_name !== undefined) updateFields.sbmqb_customer_name = measurement.sbmqb_customer_name;
+      if (measurement.description !== undefined) updateFields.description = measurement.description;
+      if (measurement.current_measure_value !== undefined) updateFields.current_measure_value = measurement.current_measure_value;
+
+      if (Object.keys(updateFields).length === 0) {
+        return res.json({ message: 'Measurement updated.' });
+      }
+
+      return database.table('measurements')
+        .where('id', measurementId)
+        .update(updateFields)
+        .then(() => res.json({ message: 'Measurement updated.' }));
+    })
     .catch(next);
   } catch (err) {
     res.status(400).json({ message: err.message });
@@ -857,3 +948,7 @@ app.get('/api/services/:id', async (req, res, next) => {
 });
 
 module.exports = app;
+// Exportado adicionalmente para tests unitarios directos (ver test/measurements.test.js,
+// TAREA 2 -- fallback a last_measure_value en filas baseline). `app` sigue siendo el
+// export por defecto (una función de Express), esto solo le agrega una propiedad.
+module.exports.calculateTotalMeasurements = calculateTotalMeasurements;

@@ -88,12 +88,18 @@ const validateCreateMeasurements = [
     .matches(/^(PENDIENTE|PROCESANDO|FACTURADO)$/).withMessage('status must be either \'PENDIENTE\', \'PROCESANDO\' or \'FACTURADO\'')
 ];
 
+// Fix ADVERTENCIA (code review 2026-09-27): el contrato real que usa el
+// frontend (Frontend-SBMElectric/src/api/history.ts, UpdateMeasurementPayload)
+// solo envía sbmqb_customer_name, description y current_measure_value -- los
+// 3 campos se validan (todos opcionales, ya que el endpoint solo actualiza
+// los campos realmente enviados en el body). No se agrega validación para
+// measurer_id/status/last_measure_*/sbmqb_service porque este endpoint ya no
+// acepta esas columnas (ver whitelisting de updateFields en server.js).
 const validateUpdateMeasurements = [
     param('id').notEmpty().withMessage('ID path parameter is required').isInt().withMessage('ID path parameter must be a number'),
-    //body('measurer_id').notEmpty().withMessage('measurer_id parameter is required').isInt().withMessage('measurer_id parameter must be a number'),
-    //body('sbmqb_customer_name').notEmpty().withMessage('sbmqb_customer_name parameter is required').isString().withMessage('sbmqb_customer_name parameter must be a string'),
-    //body('current_measure_value').notEmpty().withMessage('current_measure_value parameter is required').isDecimal().withMessage('current_measure_value parameter must be a decimal'),
-    //body('current_measure_date').notEmpty().withMessage('current_measure_date parameter is required').isString().withMessage('current_measure_date parameter must be a string on this format: \'1999-12-30 01:55:56.416\''),
+    body('sbmqb_customer_name').optional().isString().withMessage('sbmqb_customer_name parameter must be a string').notEmpty().withMessage('sbmqb_customer_name parameter cannot be empty'),
+    body('description').optional().isString().withMessage('description parameter must be a string'),
+    body('current_measure_value').optional().isDecimal().withMessage('current_measure_value parameter must be a decimal'),
 ];
 
 
