@@ -774,7 +774,15 @@ app.post('/api/bill', validateCreateInvoice, async (req, res, next) => {
             );
           }
 
-          const [insertedInvoice] = await trx('sbmqb_invoices')
+          // Fix CRÍTICO (2026-09-27, bloqueaba el 100% de la facturación nueva):
+          // `.returning('*')` es un no-op silencioso en MySQL/MariaDB vía knex --
+          // el insert real devuelve `[insertId]` (un número), nunca una fila. Con
+          // `.returning('*')`, `insertedInvoice` quedaba `undefined` y
+          // `insertedInvoice.id` tiraba TypeError / undefined, lo que después
+          // provocaba un `.update({ sbmqb_invoices_id: undefined })` vacío y
+          // knex abortaba con "Empty .update() call detected!", haciendo rollback
+          // de toda la transacción antes de llegar a QBO.
+          const [insertId] = await trx('sbmqb_invoices')
             .insert({
               sbmqb_customer_name: newInvoice.sbmqb_customer_name,
               sbmqb_service: newInvoice.sbmqb_service,
@@ -786,10 +794,9 @@ app.post('/api/bill', validateCreateInvoice, async (req, res, next) => {
               end_date: newInvoice.end_date,
               status: 'PENDIENTE',
               sbmqb_invoice_id: ""
-            })
-            .returning('*');
+            });
 
-          createdInvoiceId = insertedInvoice.id;
+          createdInvoiceId = insertId;
 
           // Fix acompañante (mismo bloque, mismo riesgo de facturación): antes se
           // guardaba el objeto `insertedInvoice` completo en esta columna entera
@@ -800,7 +807,7 @@ app.post('/api/bill', validateCreateInvoice, async (req, res, next) => {
           // atascadas en PROCESANDO para siempre tras un sync exitoso.
           await trx('measurements')
             .whereIn('id', newInvoice.ids)
-            .update({ sbmqb_invoices_id: insertedInvoice.id });
+            .update({ sbmqb_invoices_id: insertId });
         });
       } catch (transactionError) {
         if (transactionError instanceof MeasurementsAlreadyClaimedError) {

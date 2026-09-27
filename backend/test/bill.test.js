@@ -79,13 +79,14 @@ describe('POST /api/bill — wiring de processPendingInvoices (qboSync)', () => 
       const trx = (tableName) => {
         if (tableName === 'sbmqb_invoices') {
           return {
-            insert: (data) => ({
-              returning: async () => {
-                const row = { id: nextId++, ...data };
-                insertedRows.push(row);
-                return [row];
-              }
-            })
+            // Fix (2026-09-27): MySQL/MariaDB vía knex no soporta `.returning()`
+            // (era un no-op silencioso) -- `.insert()` resuelve directamente a
+            // `[insertId]`, igual que el driver real. Este mock refleja eso.
+            insert: async (data) => {
+              const id = nextId++;
+              insertedRows.push({ id, ...data });
+              return [id];
+            }
           };
         }
         if (tableName === 'measurements') {
@@ -350,13 +351,11 @@ describe('POST /api/bill — wiring de processPendingInvoices (qboSync)', () => 
       const trx = (tableName) => {
         if (tableName === 'sbmqb_invoices') {
           return {
-            insert: (data) => ({
-              returning: async () => {
-                const row = { id: nextId++, ...data };
-                insertedRows.push(row);
-                return [row];
-              }
-            })
+            insert: async (data) => {
+              const id = nextId++;
+              insertedRows.push({ id, ...data });
+              return [id];
+            }
           };
         }
         if (tableName === 'measurements') {
