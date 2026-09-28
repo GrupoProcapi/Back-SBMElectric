@@ -22,6 +22,7 @@ const jwt = require('jsonwebtoken');
 const qboPublicRoutes = require('./routes/qboPublicRoutes');
 const qboAdminRoutes = require('./routes/qboAdminRoutes');
 const qboInvoiceService = require('./services/qboInvoiceService');
+const qboConfig = require('./config/qboConfig');
 // Api
 const app = express();
 app.use(bodyParser.json());
@@ -34,6 +35,17 @@ app.use('/api/qbo', qboPublicRoutes);
 
 const isEmpty = (str) => {
   return str === null || str === undefined || str.trim() === '';
+};
+
+// Deriva un label legible para el dropdown de tarifas a partir de una key de
+// QBO_SERVICE_MAP_JSON (ej. "4113 · INGRESOS ELECTRIDIDAD:70000:70004-Electricity
+// T. @ 0.48/KW" -> "Electricity T. @ 0.48/KW"). Puramente cosmético: si el
+// formato no matchea lo esperado, devuelve la key completa tal cual en vez de
+// romper (usada solo por GET /api/customers/rate-options).
+const deriveServiceLabel = (key) => {
+  const lastSegment = key.split(':').pop();
+  const match = lastSegment.match(/^\d+-(.+)$/);
+  return match ? match[1] : key;
 };
 
 const groupMeasurementsByClientName = (measurements) => {
@@ -234,14 +246,22 @@ app.get("/drop", function(req, res, next) {
     .catch(next);
 });
 
+// DEPRECADO Y DESHABILITADO POR SEGURIDAD (2026-09-27, ver reporte a Jefe).
+// Este endpoint tenía 3 problemas serios:
+//  1. El primer UPDATE no tenía WHERE: reseteaba `sbmqb_service` de TODOS los
+//     clientes de `sbmqb_customers` sin filtro alguno.
+//  2. Escribía el string con la entidad HTML `&#183;` en vez del carácter real
+//     `·` -- el mismo bug de encoding que ya se corrigió en QBO_SERVICE_MAP_JSON.
+//  3. Tenía 21 sbmqb_id hardcodeados en el código fuente para asignarles la
+//     tarifa de 0.415/KW, en vez de usar un input validado.
+// Reemplazado por PUT /api/customers/:sbmqb_id/rate, que valida `serviceKey`
+// contra las keys reales de QBO_SERVICE_MAP_JSON y escribe con WHERE
+// parametrizado, una sola fila a la vez. No se borra la ruta (por si algo
+// externo le sigue pegando) pero queda inutilizada con 410 Gone.
 app.get("/api/updateServices", function(req, res, next) {
-  database.raw(`UPDATE sbmqb_customers SET sbmqb_service = '4113 &#183; INGRESOS ELECTRIDIDAD:70000:70004-Electricity T. @ 0.48/KW' `)
-    .then(([rows, columns]) => {
-      database.raw(`UPDATE sbmqb_customers SET sbmqb_service = '4113 &#183; INGRESOS ELECTRIDIDAD:70000:70001-Metered elect. @ 0.415/KW' WHERE sbmqb_id IN ('800004FE-1559630569', '8000153F-1651439918', '800006AB-1559694362', '800015FD-1656190661', '800003B8-1559630368', '8000097D-1560200598', '80001643-1659555617', '80001545-1651767472', '8000168F-1662581531', '80000F65-1610125439', '8000168C-1662564298', '80001596-1653594896', '80000426-1559630566', '800006A6-1559694362', '80000483-1559630567', '800009D9-1561573293', '80000844-1559694369', '800001F4-1559630361', '800005DF-1559694358', '80001090-1618934076', '800007F5-1559694368')`)
-      .then(([rows, columns]) => rows )
-      .then((row) => res.json({ message: row }))
-    })
-    .catch(next);
+  res.status(410).json({
+    error: 'Endpoint deprecado y deshabilitado por seguridad. Usar PUT /api/customers/:sbmqb_id/rate'
+  });
 });
 
 app.get("/healthz", function(req, res) {
@@ -981,6 +1001,48 @@ app.get('/api/customers', async (req, res, next) => {
   }
 });
 
+// GET /api/customers/rate-options -- tarifas disponibles para asignar a un
+// cliente, leídas EXCLUSIVAMENTE desde las keys de QBO_SERVICE_MAP_JSON (nunca
+// derivadas de campos genéricos del Item de QBO -- esa convención contable no
+// es derivable de forma segura). Se refresca `unitPrice` consultando el Item
+// real en QBO por su itemId; si esa consulta falla (red/token), se responde
+// igual con el unitPrice configurado como fallback, en vez de romper el
+// dropdown completo. IMPORTANTE: esta ruta debe quedar registrada ANTES que
+// GET /api/customers/:id, si no Express matchea ":id" = "rate-options" primero.
+app.get('/api/customers/rate-options', async (req, res, next) => {
+  try {
+    const { serviceMap } = qboConfig.getConfig();
+    const keys = Object.keys(serviceMap);
+
+    if (keys.length === 0) {
+      return res.status(503).json({
+        message: 'No hay tarifas configuradas: QBO_SERVICE_MAP_JSON está vacío o no definido'
+      });
+    }
+
+    const itemIds = keys.map((key) => serviceMap[key].itemId);
+    let qboItems = [];
+    try {
+      qboItems = await qboInvoiceService.getQBOItemsByIds(itemIds);
+    } catch (qboError) {
+      console.error('Error consultando items QBO para rate-options (se usa unitPrice configurado como fallback):', qboError.message);
+    }
+    const itemsById = new Map(qboItems.map((item) => [String(item.Id), item]));
+
+    const options = keys.map((key) => {
+      const { itemId, unitPrice } = serviceMap[key];
+      const qboItem = itemsById.get(String(itemId));
+      const currentUnitPrice = qboItem && typeof qboItem.UnitPrice === 'number' ? qboItem.UnitPrice : unitPrice;
+      return { key, itemId, unitPrice: currentUnitPrice, label: deriveServiceLabel(key) };
+    });
+
+    res.json({ message: options });
+  } catch (err) {
+    console.error('Error obteniendo opciones de tarifa:', err.message);
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // Get single Customer
 // NOTA (BUG ALTO, seguridad): antes se armaba con `database.raw` interpolando
 // `customerId` sin comillas ni parametrizar, lo cual era una inyección SQL
@@ -1013,6 +1075,47 @@ app.put('/api/customers', async (req, res, next) => {
     .catch(next);
 
   } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// PUT /api/customers/:sbmqb_id/rate -- asigna la tarifa a UN cliente puntual.
+// Reemplaza al viejo GET /api/updateServices (ver arriba, ahora 410 Gone).
+// Ruta y método ya esperados por el frontend (src/api/customers.ts,
+// useUpdateCustomerRateMutation) -- no requiere cambios ahí.
+app.put('/api/customers/:sbmqb_id/rate', async (req, res, next) => {
+  try {
+    const { sbmqb_id } = req.params;
+    // El hook del frontend manda el campo como `sbmqb_service` (mismo nombre
+    // que la columna en sbmqb_customers, ver UpdateCustomerRatePayload en
+    // src/api/customers.ts). Se acepta también `serviceKey` como alias
+    // explícito para no acoplar el contrato de esta ruta a un nombre de
+    // columna interno.
+    const serviceKey = req.body ? (req.body.serviceKey || req.body.sbmqb_service) : undefined;
+
+    if (typeof serviceKey !== 'string' || serviceKey.trim() === '') {
+      return res.status(400).json({
+        message: 'serviceKey (o sbmqb_service) es requerido y debe ser un string no vacío'
+      });
+    }
+
+    const { serviceMap } = qboConfig.getConfig();
+    if (!Object.prototype.hasOwnProperty.call(serviceMap, serviceKey)) {
+      return res.status(400).json({
+        message: `"${serviceKey}" no es una tarifa válida. Usá GET /api/customers/rate-options para ver las opciones disponibles.`
+      });
+    }
+
+    const existing = await database.table('sbmqb_customers').where('sbmqb_id', sbmqb_id).first();
+    if (!existing) {
+      return res.status(404).json({ message: 'Customer not found' });
+    }
+
+    await database.table('sbmqb_customers').where('sbmqb_id', sbmqb_id).update({ sbmqb_service: serviceKey });
+
+    res.json({ success: true, sbmqb_id, sbmqb_service: serviceKey });
+  } catch (err) {
+    console.error('Error asignando tarifa al cliente:', err.message);
     res.status(500).json({ message: err.message });
   }
 });

@@ -106,6 +106,33 @@ const getQBOItems = async ({ search, client = qboClient } = {}) => {
   return items;
 };
 
+// --- getQBOItemsByIds: batch fetch de Items por Id ------------------------
+// Usado por GET /api/customers/rate-options (server.js) para refrescar el
+// UnitPrice ACTUAL de los items configurados en QBO_SERVICE_MAP_JSON. A
+// diferencia de getQBOItems(), los ids acá vienen siempre de configuración de
+// servidor (env var QBO_SERVICE_MAP_JSON), nunca de un query param de usuario
+// -- igual se sanitiza (solo alfanumérico) antes de interpolar en la query de
+// QBO, por disciplina, y para no propagar un id corrupto silenciosamente.
+const QBO_ID_ALLOWED_CHARS = /^[A-Za-z0-9]+$/;
+
+const getQBOItemsByIds = async (ids, { client = qboClient } = {}) => {
+  const sanitizedIds = Array.from(new Set(
+    (ids || []).filter((id) => typeof id === 'string' && QBO_ID_ALLOWED_CHARS.test(id))
+  ));
+
+  if (sanitizedIds.length === 0) {
+    return [];
+  }
+
+  const idList = sanitizedIds.map((id) => `'${id}'`).join(',');
+  const query = `SELECT * FROM Item WHERE Id IN (${idList})`;
+  // encodeURIComponent obligatorio -- mismo motivo que en getQBOItems/paginateQboEntity
+  // (ver comentario ahí sobre el bug de `%` crudo). Acá no hay `%` en la query,
+  // pero se mantiene la misma disciplina.
+  const response = await client.makeApiCall(`/query?query=${encodeURIComponent(query)}`);
+  return response.QueryResponse?.Item || [];
+};
+
 // --- getQBOTerms / getQBOClasses: paginación genérica --------------------
 // Term (formas de pago) y Class (clases de QBO, ej. "MARINA") son entidades
 // de solo lectura sin filtro de búsqueda -- no necesitan la sanitización de
@@ -380,6 +407,7 @@ const processPendingInvoices = async ({ invoiceIds, dryRun = true } = {}) => {
 
 module.exports = {
   getQBOItems,
+  getQBOItemsByIds,
   getQBOTerms,
   getQBOClasses,
   getQBOInvoices,
